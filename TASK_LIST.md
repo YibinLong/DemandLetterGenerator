@@ -55,7 +55,7 @@
 
 ---
 
-## **EPIC 2: DOCUMENT MANAGEMENT (P0)** 🟦
+## **EPIC 2: DOCUMENT MANAGEMENT (P0)** ✅
 
 ### **Story 2.1: Document Upload System** ✅
 
@@ -74,17 +74,17 @@
 
 ---
 
-### **Story 2.2: Document Storage & Retrieval** ⬜
+### **Story 2.2: Document Storage & Retrieval** ✅
 
 **Story:** As an attorney, I want to view and manage my uploaded documents
 
-- ⬜ **Task 2.2.1:** Create document listing API endpoint
-- ⬜ **Task 2.2.2:** Implement document download API endpoint
-- ⬜ **Task 2.2.3:** Create document deletion API endpoint
-- ⬜ **Task 2.2.4:** Build document library UI component
-- ⬜ **Task 2.2.5:** Implement document preview functionality
-- ⬜ **Task 2.2.6:** Add document search and filtering
-- ⬜ **Task 2.2.7:** Implement document organization by case/matter
+- ✅ **Task 2.2.1:** Create document listing API endpoint
+- ✅ **Task 2.2.2:** Implement document download API endpoint
+- ✅ **Task 2.2.3:** Create document deletion API endpoint
+- ✅ **Task 2.2.4:** Build document library UI component
+- ✅ **Task 2.2.5:** Implement document preview functionality
+- ✅ **Task 2.2.6:** Add document search and filtering
+- ✅ **Task 2.2.7:** Implement document organization by case/matter
 
 **Acceptance:** Users can view, download, delete, and organize their uploaded documents.
 
@@ -389,7 +389,7 @@
 | Epic | Priority | Stories | Tasks | Status |
 |------|----------|---------|-------|--------|
 | Epic 1: Project Setup | P0 | 3 | 22 | ✅ (3/3 Stories) |
-| Epic 2: Document Management | P0 | 2 | 15 | 🟦 (1/2 Stories) |
+| Epic 2: Document Management | P0 | 2 | 15 | ✅ (2/2 Stories) |
 | Epic 3: AI Demand Letter Generation | P0 | 3 | 20 | ⬜ |
 | Epic 4: Template Management | P0 | 2 | 13 | ⬜ |
 | Epic 5: Document Export | P0 | 1 | 7 | ⬜ |
