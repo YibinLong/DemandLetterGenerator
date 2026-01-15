@@ -59,7 +59,7 @@ window.getSelection = () => ({
 Element.prototype.scrollIntoView = () => {};
 
 // Mock ResizeObserver
-global.ResizeObserver = class ResizeObserver {
+(globalThis as Record<string, unknown>).ResizeObserver = class ResizeObserver {
   observe() {}
   unobserve() {}
   disconnect() {}

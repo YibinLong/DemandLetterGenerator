@@ -11,6 +11,10 @@ export { RefinementPanel } from './RefinementPanel';
 export { ExportDialog } from './ExportDialog';
 export { RichTextEditor } from './RichTextEditor';
 
+// Collaboration components
+export { CollaborativeEditor } from './CollaborativeEditor';
+export { ShareDialog } from './ShareDialog';
+
 // Template components
 export { TemplateList } from './TemplateList';
 export { TemplateEditor } from './TemplateEditor';
