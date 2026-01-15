@@ -51,6 +51,32 @@ interface RefineRequest {
   model?: string;
 }
 
+interface ExportOptions {
+  font_name?: string;
+  font_size?: number;
+  margin_top?: number;
+  margin_bottom?: number;
+  margin_left?: number;
+  margin_right?: number;
+  line_spacing?: number;
+  include_letterhead?: boolean;
+  letterhead_firm_name?: string;
+  letterhead_address?: string;
+  letterhead_phone?: string;
+  letterhead_email?: string;
+  include_page_numbers?: boolean;
+  include_date?: boolean;
+}
+
+interface ExportRequest {
+  options?: ExportOptions;
+}
+
+interface BatchExportRequest {
+  demand_letter_ids: string[];
+  options?: ExportOptions;
+}
+
 // Helper to read and decrypt document content for AI processing
 const getDocumentContent = (doc: Document): Buffer => {
   if (!fs.existsSync(doc.file_path)) {
@@ -1083,5 +1109,276 @@ router.delete(
     }
   }
 );
+
+// Export demand letter to Word document
+router.post(
+  '/:id/export',
+  authenticate,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const id = req.params.id as string;
+      const body = req.body as ExportRequest;
+      const db = getDatabase();
+
+      // Get demand letter
+      const demandLetter = db.prepare(`
+        SELECT * FROM demand_letters WHERE id = ? AND firm_id = ?
+      `).get(id, req.user!.firm_id) as DemandLetter | undefined;
+
+      if (!demandLetter) {
+        res.status(404).json({ error: 'Demand letter not found' });
+        return;
+      }
+
+      // Get firm info for letterhead if needed
+      let exportOptions = body.options || {};
+      if (exportOptions.include_letterhead) {
+        const firm = db.prepare(`SELECT * FROM firms WHERE id = ?`).get(req.user!.firm_id) as {
+          name: string;
+          address?: string;
+          phone?: string;
+          email?: string;
+        } | undefined;
+
+        if (firm) {
+          exportOptions = {
+            ...exportOptions,
+            letterhead_firm_name: exportOptions.letterhead_firm_name || firm.name,
+            letterhead_address: exportOptions.letterhead_address || firm.address,
+            letterhead_phone: exportOptions.letterhead_phone || firm.phone,
+            letterhead_email: exportOptions.letterhead_email || firm.email,
+          };
+        }
+      }
+
+      // Call AI service to generate Word document
+      let aiResponse;
+      try {
+        aiResponse = await axios.post(
+          `${AI_SERVICE_URL}/ai/export`,
+          {
+            content: demandLetter.content,
+            title: demandLetter.title,
+            options: exportOptions,
+          },
+          {
+            responseType: 'arraybuffer',
+            timeout: 30000,
+          }
+        );
+      } catch (aiError) {
+        if (axios.isAxiosError(aiError)) {
+          console.error('AI export error:', aiError.response?.data || aiError.message);
+          res.status(502).json({
+            error: 'Export failed',
+            details: aiError.message,
+          });
+          return;
+        }
+        throw aiError;
+      }
+
+      // Log audit event
+      await logAuditEvent({
+        event_type: 'DEMAND_LETTER_EXPORTED',
+        user_id: req.user!.id,
+        firm_id: req.user!.firm_id,
+        resource_type: 'demand_letter',
+        resource_id: id,
+        details: {
+          title: demandLetter.title,
+          format: 'docx',
+        },
+        ip_address: req.ip || req.socket.remoteAddress,
+      });
+
+      // Set response headers from AI service response
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      );
+      res.setHeader(
+        'Content-Disposition',
+        aiResponse.headers['content-disposition'] || `attachment; filename="${demandLetter.title.replace(/[^a-zA-Z0-9]/g, '_')}.docx"`
+      );
+      res.setHeader('Content-Length', aiResponse.data.length);
+
+      res.send(Buffer.from(aiResponse.data));
+    } catch (err) {
+      console.error('Export demand letter error:', err);
+      res.status(500).json({ error: 'Failed to export demand letter' });
+    }
+  }
+);
+
+// Batch export demand letters to Word documents (ZIP)
+router.post(
+  '/export/batch',
+  authenticate,
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const body = req.body as BatchExportRequest;
+      const { demand_letter_ids, options } = body;
+
+      if (!demand_letter_ids || demand_letter_ids.length === 0) {
+        res.status(400).json({ error: 'At least one demand letter ID is required' });
+        return;
+      }
+
+      if (demand_letter_ids.length > 50) {
+        res.status(400).json({ error: 'Maximum 50 demand letters per batch export' });
+        return;
+      }
+
+      const db = getDatabase();
+
+      // Get all demand letters
+      const demandLetters = demand_letter_ids.map(id => {
+        const dl = db.prepare(`
+          SELECT * FROM demand_letters WHERE id = ? AND firm_id = ?
+        `).get(id, req.user!.firm_id) as DemandLetter | undefined;
+
+        if (!dl) {
+          throw new Error(`Demand letter not found: ${id}`);
+        }
+
+        return dl;
+      });
+
+      // Get firm info for letterhead if needed
+      let exportOptions = options || {};
+      if (exportOptions.include_letterhead) {
+        const firm = db.prepare(`SELECT * FROM firms WHERE id = ?`).get(req.user!.firm_id) as {
+          name: string;
+          address?: string;
+          phone?: string;
+          email?: string;
+        } | undefined;
+
+        if (firm) {
+          exportOptions = {
+            ...exportOptions,
+            letterhead_firm_name: exportOptions.letterhead_firm_name || firm.name,
+            letterhead_address: exportOptions.letterhead_address || firm.address,
+            letterhead_phone: exportOptions.letterhead_phone || firm.phone,
+            letterhead_email: exportOptions.letterhead_email || firm.email,
+          };
+        }
+      }
+
+      // Call AI service for batch export
+      let aiResponse;
+      try {
+        aiResponse = await axios.post(
+          `${AI_SERVICE_URL}/ai/export/batch`,
+          {
+            items: demandLetters.map(dl => ({
+              id: dl.id,
+              content: dl.content,
+              title: dl.title,
+              filename: dl.title.replace(/[^a-zA-Z0-9]/g, '_'),
+            })),
+            options: exportOptions,
+          },
+          {
+            responseType: 'arraybuffer',
+            timeout: 120000, // 2 minutes for batch
+          }
+        );
+      } catch (aiError) {
+        if (axios.isAxiosError(aiError)) {
+          console.error('AI batch export error:', aiError.response?.data || aiError.message);
+          res.status(502).json({
+            error: 'Batch export failed',
+            details: aiError.message,
+          });
+          return;
+        }
+        throw aiError;
+      }
+
+      // Log audit event
+      await logAuditEvent({
+        event_type: 'DEMAND_LETTER_BATCH_EXPORTED',
+        user_id: req.user!.id,
+        firm_id: req.user!.firm_id,
+        resource_type: 'demand_letter',
+        resource_id: 'batch',
+        details: {
+          count: demandLetters.length,
+          ids: demand_letter_ids,
+          format: 'docx',
+        },
+        ip_address: req.ip || req.socket.remoteAddress,
+      });
+
+      // Set response headers
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', 'attachment; filename="demand_letters.zip"');
+      res.setHeader('Content-Length', aiResponse.data.length);
+      res.setHeader('X-Export-File-Count', aiResponse.headers['x-export-file-count'] || demandLetters.length);
+
+      res.send(Buffer.from(aiResponse.data));
+    } catch (err) {
+      console.error('Batch export error:', err);
+      if (err instanceof Error && err.message.includes('Demand letter not found')) {
+        res.status(404).json({ error: err.message });
+        return;
+      }
+      res.status(500).json({ error: 'Failed to batch export demand letters' });
+    }
+  }
+);
+
+// Get export options
+router.get('/export/options', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    // Get firm info for letterhead defaults
+    const db = getDatabase();
+    const firm = db.prepare(`SELECT * FROM firms WHERE id = ?`).get(req.user!.firm_id) as {
+      name: string;
+      address?: string;
+      phone?: string;
+      email?: string;
+    } | undefined;
+
+    res.json({
+      fonts: [
+        'Times New Roman',
+        'Arial',
+        'Calibri',
+        'Georgia',
+        'Garamond',
+        'Century',
+        'Palatino Linotype',
+        'Book Antiqua',
+      ],
+      defaults: {
+        font_name: 'Times New Roman',
+        font_size: 12,
+        margin_top: 1.0,
+        margin_bottom: 1.0,
+        margin_left: 1.0,
+        margin_right: 1.0,
+        line_spacing: 1.0,
+        include_letterhead: false,
+        include_page_numbers: true,
+        include_date: true,
+      },
+      font_sizes: [10, 11, 12, 14],
+      line_spacing_options: [1.0, 1.15, 1.5, 2.0],
+      margin_range: { min: 0.5, max: 2.0 },
+      firm_letterhead: firm ? {
+        firm_name: firm.name,
+        address: firm.address,
+        phone: firm.phone,
+        email: firm.email,
+      } : null,
+    });
+  } catch (err) {
+    console.error('Get export options error:', err);
+    res.status(500).json({ error: 'Failed to get export options' });
+  }
+});
 
 export default router;
