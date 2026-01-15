@@ -1,6 +1,8 @@
 // Database module exports
 export { getDatabase, initializeDatabase, closeDatabase } from './connection.js';
 export type { DatabaseConfig } from './connection.js';
+export { getDatabasePool, closeDatabasePool, DatabasePool } from './pool.js';
+export type { PoolConfig, PoolStats } from './pool.js';
 export {
   SCHEMA_VERSION,
   CREATE_TABLES_SQL,

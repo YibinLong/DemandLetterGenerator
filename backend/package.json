@@ -10,7 +10,9 @@
     "db:seed": "tsx src/db/seed.ts",
     "db:reset": "rm -f data/database.sqlite data/database.sqlite-wal data/database.sqlite-shm && tsx src/db/seed.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:load": "tsx src/tests/load-test.ts",
+    "test:load:auth": "tsx src/tests/load-test.ts http://localhost:3001 authenticated"
   },
   "keywords": [
     "demand-letter",

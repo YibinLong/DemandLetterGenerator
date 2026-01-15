@@ -9,6 +9,7 @@ import https from 'https';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { initializeDatabase, getDatabase } from './db/index.js';
+import { getDatabasePool } from './db/pool.js';
 import authRoutes from './routes/auth.js';
 import documentRoutes from './routes/documents.js';
 import demandLetterRoutes from './routes/demand-letters.js';
@@ -20,6 +21,8 @@ import { generalRateLimit, startRateLimitCleanup } from './middleware/rateLimit.
 import { initializeCollaboration } from './services/collaboration.js';
 import { performanceMiddleware, performanceMonitor } from './services/performance.js';
 import { cache } from './services/cache.js';
+import { initializeScaling, getMetricsCollector, scalingMiddleware } from './services/scaling.js';
+import { getRequestQueue } from './services/requestQueue.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,6 +32,18 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 // Initialize database
 initializeDatabase();
+
+// Initialize database pool for optimized connection management
+const dbPool = getDatabasePool();
+console.log('[Database] Connection pool initialized');
+
+// Initialize scaling infrastructure
+const scaling = initializeScaling();
+console.log('[Scaling] Infrastructure initialized');
+
+// Initialize request queue for AI operations
+const requestQueue = getRequestQueue();
+console.log('[RequestQueue] Request queue initialized');
 
 // Start rate limit cleanup task
 startRateLimitCleanup();
@@ -102,23 +117,39 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Performance monitoring middleware
 app.use(performanceMiddleware);
 
+// Scaling metrics middleware
+app.use(scalingMiddleware());
+
 // Apply general rate limiting to all API routes
 app.use('/api', generalRateLimit);
 
 // Health check endpoint (no rate limiting)
 app.get('/health', (req: Request, res: Response) => {
-  const db = getDatabase();
-  let dbStatus = 'connected';
-  try {
-    db.prepare('SELECT 1').get();
-  } catch {
-    dbStatus = 'error';
-  }
+  const dbHealth = dbPool.healthCheck();
+  const dbStats = dbPool.getStats();
+  const queueStats = requestQueue.getStats();
 
   res.json({
-    status: 'healthy',
+    status: dbHealth.healthy ? 'healthy' : 'degraded',
     service: 'backend-api',
-    database: dbStatus,
+    database: {
+      status: dbHealth.healthy ? 'connected' : 'error',
+      latency: dbHealth.latency,
+      walEnabled: dbStats.walEnabled,
+      queryCount: dbStats.totalQueries,
+      slowQueries: dbStats.slowQueries,
+    },
+    queue: {
+      pending: queueStats.pendingCount,
+      processing: queueStats.processingCount,
+      utilization: queueStats.queueUtilization,
+    },
+    scaling: {
+      instanceId: scaling.config.instanceId,
+      region: scaling.config.region,
+      environment: scaling.config.environment,
+      statelessMode: scaling.config.enableStatelessMode,
+    },
     timestamp: new Date().toISOString(),
     version: '1.0.0',
   });
@@ -128,10 +159,16 @@ app.get('/health', (req: Request, res: Response) => {
 app.get('/metrics', (req: Request, res: Response) => {
   const performanceStats = performanceMonitor.getStats();
   const cacheStats = cache.getStats();
+  const dbStats = dbPool.getStats();
+  const queueStats = requestQueue.getStats();
+  const scalingMetrics = getMetricsCollector().getMetrics();
 
   res.json({
     performance: performanceStats,
     cache: cacheStats,
+    database: dbStats,
+    queue: queueStats,
+    scaling: scalingMetrics,
     slowRequests: performanceMonitor.getSlowRequests().slice(0, 10),
     endpointStats: performanceMonitor.getEndpointStats(),
     timestamp: new Date().toISOString(),
