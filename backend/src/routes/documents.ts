@@ -438,6 +438,72 @@ router.get('/:id/download', authenticate, async (req: AuthRequest, res: Response
   }
 });
 
+// Preview document (inline display, not download)
+router.get('/:id/preview', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const db = getDatabase();
+
+    const document = db.prepare(`
+      SELECT * FROM documents WHERE id = ? AND firm_id = ?
+    `).get(id, req.user!.firm_id) as Document | undefined;
+
+    if (!document) {
+      res.status(404).json({ error: 'Document not found' });
+      return;
+    }
+
+    // Read and decrypt file
+    if (!fs.existsSync(document.file_path)) {
+      res.status(404).json({ error: 'Document file not found on disk' });
+      return;
+    }
+
+    const encryptedBuffer = fs.readFileSync(document.file_path);
+
+    // Extract components (format: [iv][authTag][encrypted])
+    const IV_LENGTH = 12;
+    const AUTH_TAG_LENGTH = 16;
+    const iv = encryptedBuffer.subarray(0, IV_LENGTH);
+    const authTag = encryptedBuffer.subarray(IV_LENGTH, IV_LENGTH + AUTH_TAG_LENGTH);
+    const encrypted = encryptedBuffer.subarray(IV_LENGTH + AUTH_TAG_LENGTH);
+
+    const decryptedBuffer = decryptBuffer({ encrypted, iv, authTag });
+
+    // Log audit event for preview
+    await logAuditEvent({
+      event_type: 'DOCUMENT_PREVIEWED',
+      user_id: req.user!.id,
+      firm_id: req.user!.firm_id,
+      resource_type: 'document',
+      resource_id: id,
+      details: {
+        original_filename: document.original_filename,
+        file_type: document.file_type,
+      },
+      ip_address: req.ip || req.socket.remoteAddress,
+    });
+
+    // Set response headers for inline display
+    const mimeTypes: Record<string, string> = {
+      pdf: 'application/pdf',
+      docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      txt: 'text/plain; charset=utf-8',
+    };
+
+    res.setHeader('Content-Type', mimeTypes[document.file_type] || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename="${document.original_filename}"`);
+    res.setHeader('Content-Length', decryptedBuffer.length);
+    // Allow embedding in iframes from same origin
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+
+    res.send(decryptedBuffer);
+  } catch (err) {
+    console.error('Preview document error:', err);
+    res.status(500).json({ error: 'Failed to preview document' });
+  }
+});
+
 // Update document metadata
 router.patch('/:id', authenticate, requireDocumentEditor, async (req: AuthRequest, res: Response) => {
   try {
