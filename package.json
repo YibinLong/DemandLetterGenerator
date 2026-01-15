@@ -1,0 +1,28 @@
+{
+  "name": "demand-letter-generator",
+  "version": "1.0.0",
+  "description": "AI-powered demand letter generator for law firms",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n frontend,backend,ai -c blue,green,yellow \"npm run dev:frontend\" \"npm run dev:backend\" \"npm run dev:ai\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:ai": "cd ai-service && source venv/bin/activate && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "start": "concurrently -n backend,ai -c green,yellow \"npm run start:backend\" \"npm run start:ai\"",
+    "start:backend": "cd backend && npm start",
+    "start:ai": "cd ai-service && source venv/bin/activate && uvicorn app.main:app --host 0.0.0.0 --port 8000",
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install && cd ../ai-service && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt",
+    "test": "npm run test:frontend && npm run test:backend",
+    "test:frontend": "cd frontend && npm test",
+    "test:backend": "cd backend && npm test"
+  },
+  "keywords": ["demand-letter", "legal", "ai", "openai"],
+  "author": "Steno",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
