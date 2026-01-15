@@ -100,6 +100,67 @@ export interface TemplateCategoriesResponse {
   categories: string[];
 }
 
+// Template analytics types
+export interface TemplateAnalyticsSummary {
+  total_templates: number;
+  shared_templates: number;
+  approved_templates: number;
+  private_templates: number;
+}
+
+export interface CategoryBreakdown {
+  category: string;
+  count: number;
+}
+
+export interface TopTemplate {
+  id: string;
+  name: string;
+  category: string | null;
+  is_shared: boolean;
+  is_approved: boolean;
+  usage_count: number;
+  last_used_at: string | null;
+  creator_name: string;
+}
+
+export interface RecentActivity {
+  templates_created_last_30_days: number;
+  templates_updated_last_30_days: number;
+}
+
+export interface UsageStatistics {
+  total_demand_letters: number;
+  demand_letters_with_template: number;
+  template_adoption_rate: number;
+  unique_templates_used: number;
+}
+
+export interface TemplatesByCreator {
+  user_id: string;
+  name: string;
+  role: string;
+  template_count: number;
+  shared_count: number;
+}
+
+export interface TemplateAnalyticsResponse {
+  summary: TemplateAnalyticsSummary;
+  category_breakdown: CategoryBreakdown[];
+  top_templates: TopTemplate[];
+  recent_activity: RecentActivity;
+  usage_statistics: UsageStatistics;
+  templates_by_creator: TemplatesByCreator[];
+}
+
+export interface SeedDefaultsResponse {
+  message: string;
+  templates_created: string[];
+  templates_skipped: string[];
+  total_created: number;
+  total_skipped: number;
+}
+
 // Template categories
 export const TEMPLATE_CATEGORIES = [
   'Personal Injury',

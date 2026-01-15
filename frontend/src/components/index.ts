@@ -13,3 +13,4 @@ export { RefinementPanel } from './RefinementPanel';
 export { TemplateList } from './TemplateList';
 export { TemplateEditor } from './TemplateEditor';
 export { TemplatePreview } from './TemplatePreview';
+export { FirmTemplateLibrary } from './FirmTemplateLibrary';

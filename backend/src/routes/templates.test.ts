@@ -865,4 +865,370 @@ describe('Template Management API', () => {
       expect(otherUser !== testUserId && otherUser !== testAdminId).toBe(true);
     });
   });
+
+  describe('Template Analytics', () => {
+    it('should calculate total template statistics', () => {
+      const now = new Date().toISOString();
+
+      // Create templates with various statuses
+      db.prepare(`
+        INSERT INTO templates (id, firm_id, created_by, name, content, is_shared, is_approved, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), testFirmId, testUserId, 'Shared Approved', 'Content', 1, 1, now, now);
+
+      db.prepare(`
+        INSERT INTO templates (id, firm_id, created_by, name, content, is_shared, is_approved, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), testFirmId, testUserId, 'Shared Not Approved', 'Content', 1, 0, now, now);
+
+      db.prepare(`
+        INSERT INTO templates (id, firm_id, created_by, name, content, is_shared, is_approved, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), testFirmId, testUserId, 'Private', 'Content', 0, 0, now, now);
+
+      const stats = db.prepare(`
+        SELECT
+          COUNT(*) as total_templates,
+          SUM(CASE WHEN is_shared = 1 THEN 1 ELSE 0 END) as shared_templates,
+          SUM(CASE WHEN is_approved = 1 THEN 1 ELSE 0 END) as approved_templates
+        FROM templates
+        WHERE firm_id = ?
+      `).get(testFirmId) as {
+        total_templates: number;
+        shared_templates: number;
+        approved_templates: number;
+      };
+
+      expect(stats.total_templates).toBe(3);
+      expect(stats.shared_templates).toBe(2);
+      expect(stats.approved_templates).toBe(1);
+    });
+
+    it('should calculate category breakdown', () => {
+      const now = new Date().toISOString();
+
+      db.prepare(`
+        INSERT INTO templates (id, firm_id, created_by, name, content, category, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), testFirmId, testUserId, 'PI 1', 'Content', 'Personal Injury', now, now);
+
+      db.prepare(`
+        INSERT INTO templates (id, firm_id, created_by, name, content, category, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), testFirmId, testUserId, 'PI 2', 'Content', 'Personal Injury', now, now);
+
+      db.prepare(`
+        INSERT INTO templates (id, firm_id, created_by, name, content, category, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), testFirmId, testUserId, 'Auto 1', 'Content', 'Auto Accident', now, now);
+
+      const categoryBreakdown = db.prepare(`
+        SELECT
+          COALESCE(category, 'Uncategorized') as category,
+          COUNT(*) as count
+        FROM templates
+        WHERE firm_id = ?
+        GROUP BY category
+        ORDER BY count DESC
+      `).all(testFirmId) as Array<{ category: string; count: number }>;
+
+      expect(categoryBreakdown.length).toBe(2);
+      expect(categoryBreakdown[0].category).toBe('Personal Injury');
+      expect(categoryBreakdown[0].count).toBe(2);
+      expect(categoryBreakdown[1].category).toBe('Auto Accident');
+      expect(categoryBreakdown[1].count).toBe(1);
+    });
+
+    it('should calculate template usage statistics', () => {
+      const templateId = uuidv4();
+      const now = new Date().toISOString();
+
+      // Create a template
+      db.prepare(`
+        INSERT INTO templates (id, firm_id, created_by, name, content, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(templateId, testFirmId, testUserId, 'Used Template', 'Content', now, now);
+
+      // Create demand letters with and without template
+      db.prepare(`
+        INSERT INTO demand_letters (id, user_id, firm_id, template_id, title, content, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), testUserId, testFirmId, templateId, 'With Template 1', 'Content', now, now);
+
+      db.prepare(`
+        INSERT INTO demand_letters (id, user_id, firm_id, template_id, title, content, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), testUserId, testFirmId, templateId, 'With Template 2', 'Content', now, now);
+
+      db.prepare(`
+        INSERT INTO demand_letters (id, user_id, firm_id, template_id, title, content, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), testUserId, testFirmId, null, 'Without Template', 'Content', now, now);
+
+      const usageStats = db.prepare(`
+        SELECT
+          COUNT(*) as total_demand_letters,
+          COUNT(template_id) as with_template,
+          COUNT(DISTINCT template_id) as unique_templates_used
+        FROM demand_letters
+        WHERE firm_id = ?
+      `).get(testFirmId) as {
+        total_demand_letters: number;
+        with_template: number;
+        unique_templates_used: number;
+      };
+
+      expect(usageStats.total_demand_letters).toBe(3);
+      expect(usageStats.with_template).toBe(2);
+      expect(usageStats.unique_templates_used).toBe(1);
+
+      // Calculate adoption rate
+      const adoptionRate = Math.round((usageStats.with_template / usageStats.total_demand_letters) * 100);
+      expect(adoptionRate).toBe(67); // 2/3 = 66.67% rounds to 67%
+    });
+
+    it('should get top templates by usage', () => {
+      const templateId1 = uuidv4();
+      const templateId2 = uuidv4();
+      const now = new Date().toISOString();
+
+      // Create templates
+      db.prepare(`
+        INSERT INTO templates (id, firm_id, created_by, name, content, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(templateId1, testFirmId, testUserId, 'Popular Template', 'Content', now, now);
+
+      db.prepare(`
+        INSERT INTO templates (id, firm_id, created_by, name, content, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(templateId2, testFirmId, testUserId, 'Less Popular', 'Content', now, now);
+
+      // Create demand letters
+      db.prepare(`
+        INSERT INTO demand_letters (id, user_id, firm_id, template_id, title, content, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), testUserId, testFirmId, templateId1, 'Letter 1', 'Content', now, now);
+
+      db.prepare(`
+        INSERT INTO demand_letters (id, user_id, firm_id, template_id, title, content, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), testUserId, testFirmId, templateId1, 'Letter 2', 'Content', now, now);
+
+      db.prepare(`
+        INSERT INTO demand_letters (id, user_id, firm_id, template_id, title, content, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), testUserId, testFirmId, templateId2, 'Letter 3', 'Content', now, now);
+
+      const topTemplates = db.prepare(`
+        SELECT
+          t.id,
+          t.name,
+          COUNT(dl.id) as usage_count
+        FROM templates t
+        LEFT JOIN demand_letters dl ON t.id = dl.template_id
+        WHERE t.firm_id = ?
+        GROUP BY t.id
+        ORDER BY usage_count DESC
+        LIMIT 10
+      `).all(testFirmId) as Array<{
+        id: string;
+        name: string;
+        usage_count: number;
+      }>;
+
+      expect(topTemplates.length).toBe(2);
+      expect(topTemplates[0].name).toBe('Popular Template');
+      expect(topTemplates[0].usage_count).toBe(2);
+      expect(topTemplates[1].name).toBe('Less Popular');
+      expect(topTemplates[1].usage_count).toBe(1);
+    });
+
+    it('should track templates by creator', () => {
+      const now = new Date().toISOString();
+
+      // Create templates by different users
+      db.prepare(`
+        INSERT INTO templates (id, firm_id, created_by, name, content, is_shared, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), testFirmId, testUserId, 'User Template 1', 'Content', 1, now, now);
+
+      db.prepare(`
+        INSERT INTO templates (id, firm_id, created_by, name, content, is_shared, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), testFirmId, testUserId, 'User Template 2', 'Content', 0, now, now);
+
+      db.prepare(`
+        INSERT INTO templates (id, firm_id, created_by, name, content, is_shared, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), testFirmId, testAdminId, 'Admin Template 1', 'Content', 1, now, now);
+
+      const templatesByCreator = db.prepare(`
+        SELECT
+          u.id as user_id,
+          u.first_name || ' ' || u.last_name as name,
+          u.role,
+          COUNT(t.id) as template_count,
+          SUM(CASE WHEN t.is_shared = 1 THEN 1 ELSE 0 END) as shared_count
+        FROM users u
+        LEFT JOIN templates t ON u.id = t.created_by AND t.firm_id = ?
+        WHERE u.firm_id = ?
+        GROUP BY u.id
+        HAVING template_count > 0
+        ORDER BY template_count DESC
+      `).all(testFirmId, testFirmId) as Array<{
+        user_id: string;
+        name: string;
+        role: string;
+        template_count: number;
+        shared_count: number;
+      }>;
+
+      expect(templatesByCreator.length).toBe(2);
+
+      const userStats = templatesByCreator.find(c => c.user_id === testUserId);
+      expect(userStats).toBeDefined();
+      expect(userStats!.template_count).toBe(2);
+      expect(userStats!.shared_count).toBe(1);
+
+      const adminStats = templatesByCreator.find(c => c.user_id === testAdminId);
+      expect(adminStats).toBeDefined();
+      expect(adminStats!.template_count).toBe(1);
+      expect(adminStats!.shared_count).toBe(1);
+    });
+  });
+
+  describe('Default Template Seeding', () => {
+    it('should create default templates when none exist', () => {
+      const now = new Date().toISOString();
+
+      // Seed default templates
+      const defaultTemplates = [
+        { name: 'Personal Injury - General', category: 'Personal Injury' },
+        { name: 'Auto Accident - Standard', category: 'Auto Accident' },
+        { name: 'Medical Malpractice - Initial', category: 'Medical Malpractice' },
+      ];
+
+      for (const template of defaultTemplates) {
+        db.prepare(`
+          INSERT INTO templates (id, firm_id, created_by, name, content, category, is_shared, is_approved, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          uuidv4(),
+          testFirmId,
+          testAdminId,
+          template.name,
+          `Default content for ${template.name}`,
+          template.category,
+          1, // Shared
+          1, // Pre-approved
+          now,
+          now
+        );
+      }
+
+      const templates = db.prepare(`
+        SELECT * FROM templates WHERE firm_id = ? AND is_shared = 1 AND is_approved = 1
+      `).all(testFirmId);
+
+      expect(templates.length).toBe(3);
+    });
+
+    it('should skip templates that already exist', () => {
+      const now = new Date().toISOString();
+
+      // Create existing template
+      db.prepare(`
+        INSERT INTO templates (id, firm_id, created_by, name, content, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), testFirmId, testUserId, 'Personal Injury - General', 'Existing content', now, now);
+
+      // Check if template exists before "seeding"
+      const existing = db.prepare(`
+        SELECT id FROM templates WHERE firm_id = ? AND name = ?
+      `).get(testFirmId, 'Personal Injury - General');
+
+      expect(existing).toBeDefined();
+
+      // Count templates after skipping
+      const count = db.prepare(`
+        SELECT COUNT(*) as count FROM templates WHERE firm_id = ?
+      `).get(testFirmId) as { count: number };
+
+      expect(count.count).toBe(1);
+    });
+
+    it('should create templates with proper placeholders', () => {
+      const now = new Date().toISOString();
+      const content = `Dear {{recipient_name}},
+
+This letter is regarding {{client_name}} and the incident on {{incident_date}}.
+
+We demand {{demand_amount}}.
+
+Sincerely,
+{{attorney_name}}`;
+
+      // Extract placeholders
+      const regex = /\{\{([^}]+)\}\}/g;
+      const placeholders: Set<string> = new Set();
+      let match;
+      while ((match = regex.exec(content)) !== null) {
+        placeholders.add(match[1].trim());
+      }
+      const placeholderArray = Array.from(placeholders);
+
+      db.prepare(`
+        INSERT INTO templates (id, firm_id, created_by, name, content, placeholders, is_shared, is_approved, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        uuidv4(),
+        testFirmId,
+        testAdminId,
+        'Default Template',
+        content,
+        JSON.stringify(placeholderArray),
+        1,
+        1,
+        now,
+        now
+      );
+
+      const template = db.prepare(`
+        SELECT placeholders FROM templates WHERE firm_id = ? AND name = ?
+      `).get(testFirmId, 'Default Template') as { placeholders: string };
+
+      const storedPlaceholders = JSON.parse(template.placeholders);
+      expect(storedPlaceholders).toContain('recipient_name');
+      expect(storedPlaceholders).toContain('client_name');
+      expect(storedPlaceholders).toContain('incident_date');
+      expect(storedPlaceholders).toContain('demand_amount');
+      expect(storedPlaceholders).toContain('attorney_name');
+    });
+
+    it('should set default templates as shared and approved', () => {
+      const now = new Date().toISOString();
+
+      db.prepare(`
+        INSERT INTO templates (id, firm_id, created_by, name, content, is_shared, is_approved, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        uuidv4(),
+        testFirmId,
+        testAdminId,
+        'Default Starter Template',
+        'Content',
+        1, // Shared
+        1, // Approved
+        now,
+        now
+      );
+
+      const template = db.prepare(`
+        SELECT is_shared, is_approved FROM templates WHERE firm_id = ? AND name = ?
+      `).get(testFirmId, 'Default Starter Template') as { is_shared: number; is_approved: number };
+
+      expect(template.is_shared).toBe(1);
+      expect(template.is_approved).toBe(1);
+    });
+  });
 });

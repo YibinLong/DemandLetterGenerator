@@ -13,6 +13,8 @@ import type {
   TemplatePreviewRequest,
   TemplatePreviewResponse,
   TemplateCategoriesResponse,
+  TemplateAnalyticsResponse,
+  SeedDefaultsResponse,
 } from '../types/template';
 
 // Create new template
@@ -105,6 +107,22 @@ export async function deleteTemplate(id: string): Promise<void> {
 export async function getTemplateCategories(): Promise<TemplateCategoriesResponse> {
   const response = await apiClient.get<TemplateCategoriesResponse>(
     '/api/templates/meta/categories'
+  );
+  return response.data;
+}
+
+// Get template analytics for the firm
+export async function getTemplateAnalytics(): Promise<TemplateAnalyticsResponse> {
+  const response = await apiClient.get<TemplateAnalyticsResponse>(
+    '/api/templates/meta/analytics'
+  );
+  return response.data;
+}
+
+// Seed default starter templates (admin only)
+export async function seedDefaultTemplates(): Promise<SeedDefaultsResponse> {
+  const response = await apiClient.post<SeedDefaultsResponse>(
+    '/api/templates/meta/seed-defaults'
   );
   return response.data;
 }
