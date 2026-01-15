@@ -16,6 +16,10 @@ NOTE:
 
 5. The OpenAI AI API Key is ALREADY there in .env, as OPENAI_API_KEY
 
-6. Log your changes and what you did in the logs folder. The log should be named like: [AGENT_NUMBER]_Agent.md. I put an example log in 0_Agent.md for how to write the log. For example, the next agent should search the number of files in the logs folder, and the name should be 1_Agent.md, etc.
+6. Log your changes and what you did in the logs folder. The log should be named like: [AGENT_NUMBER]_Agent.md. I put an example log in 0_Agent.md for how to write the log. For example, the next agent should search the number of files in the logs folder, and the next name should be 1_Agent.md, etc.
 
-7. If you are stuck, SEARCH the logs for any context for information that may help you.
+7. If you are stuck, feel free to SEARCH the logs for any context for information that may help you.
+
+8. Make sure you check off the story you just completed in TASK_LIST.md when you're done.
+
+9. Think first about your implementation before you implement.
