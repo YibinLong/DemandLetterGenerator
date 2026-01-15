@@ -133,12 +133,9 @@ button {
   font-size: inherit;
 }
 
-input:focus,
-textarea:focus,
-select:focus,
-button:focus {
-  outline: none;
-}
+/* Note: We intentionally keep default focus for accessibility
+   Custom focus styles are applied via :focus-visible to show focus
+   only for keyboard navigation, not mouse clicks */
 
 /* Button reset */
 button {
@@ -167,10 +164,67 @@ button {
   background: var(--text-tertiary);
 }
 
-/* Focus visible for accessibility */
+/* =========================================
+   ACCESSIBILITY - Focus Indicators
+   WCAG 2.1 AA Success Criterion 2.4.7
+   ========================================= */
+
+/* Default focus indicator for all elements */
 :focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
+}
+
+/* Enhanced focus for buttons and interactive elements */
+button:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--color-primary-light);
+}
+
+/* Focus for links */
+a:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Focus for form inputs */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 0;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-light);
+}
+
+/* Focus within for composite widgets */
+.focus-within-visible:focus-within {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* High contrast mode for users who prefer it */
+@media (prefers-contrast: more) {
+  :focus-visible {
+    outline: 3px solid currentColor;
+    outline-offset: 3px;
+  }
+
+  button:focus-visible,
+  [role="button"]:focus-visible,
+  a:focus-visible {
+    outline-width: 3px;
+  }
+}
+
+/* Reduced motion - simpler focus transitions */
+@media (prefers-reduced-motion: reduce) {
+  :focus-visible {
+    transition: none;
+  }
 }
 
 /* Selection */
@@ -179,8 +233,13 @@ button {
   color: var(--text-primary);
 }
 
-/* Utility classes */
-.visually-hidden {
+/* =========================================
+   ACCESSIBILITY - Utility Classes
+   ========================================= */
+
+/* Visually hidden but accessible to screen readers */
+.visually-hidden,
+.sr-only {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -190,6 +249,44 @@ button {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* Visually hidden but focusable (for skip links) */
+.visually-hidden-focusable:not(:focus):not(:focus-within),
+.sr-only-focusable:not(:focus):not(:focus-within) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Interactive element styles for keyboard users */
+.interactive {
+  cursor: pointer;
+}
+
+.interactive:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Ensure disabled elements are not interactive */
+[aria-disabled="true"],
+.disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* For elements that should not be focusable when disabled */
+[aria-disabled="true"]:focus,
+.disabled:focus {
+  outline: none;
 }
 
 /* Animations */
