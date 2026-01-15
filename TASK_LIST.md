@@ -90,18 +90,18 @@
 
 ---
 
-## **EPIC 3: AI DEMAND LETTER GENERATION (P0)** ⬜
+## **EPIC 3: AI DEMAND LETTER GENERATION (P0)** 🟦
 
-### **Story 3.1: OpenAI Integration** ⬜
+### **Story 3.1: OpenAI Integration** ✅
 
 **Story:** Set up OpenAI API integration for AI-powered document generation
 
-- ⬜ **Task 3.1.1:** Create OpenAI API client in Python service
-- ⬜ **Task 3.1.2:** Implement document text extraction (PDF, DOCX parsing)
-- ⬜ **Task 3.1.3:** Design prompt engineering for demand letter generation
-- ⬜ **Task 3.1.4:** Implement token management and cost optimization
-- ⬜ **Task 3.1.5:** Set up error handling and retry logic for API calls
-- ⬜ **Task 3.1.6:** Create API endpoint for AI generation requests
+- ✅ **Task 3.1.1:** Create OpenAI API client in Python service
+- ✅ **Task 3.1.2:** Implement document text extraction (PDF, DOCX parsing)
+- ✅ **Task 3.1.3:** Design prompt engineering for demand letter generation
+- ✅ **Task 3.1.4:** Implement token management and cost optimization
+- ✅ **Task 3.1.5:** Set up error handling and retry logic for API calls
+- ✅ **Task 3.1.6:** Create API endpoint for AI generation requests
 
 **Acceptance:** Python service can successfully call OpenAI API and process documents.
 
@@ -390,7 +390,7 @@
 |------|----------|---------|-------|--------|
 | Epic 1: Project Setup | P0 | 3 | 22 | ✅ (3/3 Stories) |
 | Epic 2: Document Management | P0 | 2 | 15 | ✅ (2/2 Stories) |
-| Epic 3: AI Demand Letter Generation | P0 | 3 | 20 | ⬜ |
+| Epic 3: AI Demand Letter Generation | P0 | 3 | 20 | 🟦 (1/3 Stories) |
 | Epic 4: Template Management | P0 | 2 | 13 | ⬜ |
 | Epic 5: Document Export | P0 | 1 | 7 | ⬜ |
 | Epic 6: Document Editing & Collaboration | P1 | 3 | 18 | ⬜ |
