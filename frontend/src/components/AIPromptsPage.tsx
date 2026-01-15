@@ -6,7 +6,6 @@ import {
   updateAIPrompt,
   deleteAIPrompt,
   duplicateAIPrompt,
-  testAIPrompt,
   seedDefaultAIPrompts,
   formatPromptType,
   getPromptTypeColor,
@@ -17,7 +16,6 @@ import type {
   AIPromptTemplateListItem,
   PromptType,
   PromptCategory,
-  PromptVariable,
   CreateAIPromptRequest,
   UpdateAIPromptRequest,
 } from '../types/ai-prompt';

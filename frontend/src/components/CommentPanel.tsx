@@ -1,5 +1,6 @@
 // Comment panel component for document annotations and discussions
-import { useState, useCallback, FormEvent } from 'react';
+import { useState, useCallback } from 'react';
+import type { FormEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getComments,
@@ -8,7 +9,7 @@ import {
   resolveComment,
   deleteComment,
 } from '../lib/change-tracking';
-import { DocumentComment, CreateCommentRequest } from '../types/demand-letter';
+import type { DocumentComment, CreateCommentRequest } from '../types/demand-letter';
 
 interface CommentPanelProps {
   demandLetterId: string;

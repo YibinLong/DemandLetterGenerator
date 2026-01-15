@@ -2,7 +2,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { compareVersions, computeDiff, diffToHtml, getDiffStats } from '../lib/change-tracking';
-import { DemandLetterVersion } from '../types/demand-letter';
+import type { DemandLetterVersion } from '../types/demand-letter';
 
 interface VersionComparisonProps {
   demandLetterId: string;

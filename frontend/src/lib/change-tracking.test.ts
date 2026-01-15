@@ -1,6 +1,7 @@
 // Change tracking library tests
 import { describe, it, expect } from 'vitest';
-import { computeDiff, diffToHtml, getDiffStats, DiffSegment } from './change-tracking';
+import { computeDiff, diffToHtml, getDiffStats } from './change-tracking';
+import type { DiffSegment } from './change-tracking';
 
 describe('Change Tracking Library', () => {
   describe('computeDiff', () => {

@@ -8,7 +8,7 @@ import {
   getAvailableModels,
   formatDate,
 } from '../lib/demand-letters';
-import { listAIPrompts, formatPromptType, getCategoryColor } from '../lib/ai-prompts';
+import { listAIPrompts, getCategoryColor } from '../lib/ai-prompts';
 import type {
   RefineResponse,
   AIGenerationHistoryItem,

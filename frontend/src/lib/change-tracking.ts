@@ -1,6 +1,6 @@
 // Change tracking API functions
 import { apiClient } from './api';
-import {
+import type {
   DocumentChange,
   DocumentComment,
   ChangesListResponse,
