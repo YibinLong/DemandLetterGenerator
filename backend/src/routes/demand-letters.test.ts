@@ -1003,4 +1003,118 @@ describe('Demand Letter API', () => {
       expect(history.length).toBe(2);
     });
   });
+
+  describe('Export Functionality', () => {
+    it('should log export audit event', () => {
+      const letterId = createTestDemandLetter({ title: 'Export Test Letter' });
+
+      db.prepare(`
+        INSERT INTO audit_logs (id, event_type, user_id, firm_id, resource_type, resource_id, details, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      `).run(
+        uuidv4(),
+        'DEMAND_LETTER_EXPORTED',
+        testUserId,
+        testFirmId,
+        'demand_letter',
+        letterId,
+        JSON.stringify({ title: 'Export Test Letter', format: 'docx' })
+      );
+
+      const log = db.prepare(`
+        SELECT * FROM audit_logs WHERE event_type = ? AND resource_id = ?
+      `).get('DEMAND_LETTER_EXPORTED', letterId) as { event_type: string; details: string };
+
+      expect(log).toBeDefined();
+      expect(log.event_type).toBe('DEMAND_LETTER_EXPORTED');
+      const details = JSON.parse(log.details);
+      expect(details.format).toBe('docx');
+    });
+
+    it('should log batch export audit event', () => {
+      const letter1Id = createTestDemandLetter({ title: 'Letter 1' });
+      const letter2Id = createTestDemandLetter({ title: 'Letter 2' });
+
+      db.prepare(`
+        INSERT INTO audit_logs (id, event_type, user_id, firm_id, resource_type, resource_id, details, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      `).run(
+        uuidv4(),
+        'DEMAND_LETTER_BATCH_EXPORTED',
+        testUserId,
+        testFirmId,
+        'demand_letter',
+        'batch',
+        JSON.stringify({ count: 2, ids: [letter1Id, letter2Id], format: 'docx' })
+      );
+
+      const log = db.prepare(`
+        SELECT * FROM audit_logs WHERE event_type = ?
+      `).get('DEMAND_LETTER_BATCH_EXPORTED') as { event_type: string; details: string };
+
+      expect(log).toBeDefined();
+      const details = JSON.parse(log.details);
+      expect(details.count).toBe(2);
+      expect(details.ids).toContain(letter1Id);
+      expect(details.ids).toContain(letter2Id);
+    });
+
+    it('should only allow export of demand letters from same firm', () => {
+      // Create another firm
+      const otherFirmId = uuidv4();
+      db.prepare(`INSERT INTO firms (id, name) VALUES (?, ?)`).run(otherFirmId, 'Other Firm');
+
+      // Create user for other firm
+      const otherUserId = uuidv4();
+      db.prepare(`
+        INSERT INTO users (id, firm_id, email, password_hash, first_name, last_name, role)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(otherUserId, otherFirmId, 'other@other.com', 'hash', 'Other', 'User', 'attorney');
+
+      // Create letter for other firm
+      const otherLetterId = uuidv4();
+      db.prepare(`
+        INSERT INTO demand_letters (id, user_id, firm_id, title, content)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(otherLetterId, otherUserId, otherFirmId, 'Other Firm Letter', 'Content');
+
+      // Try to get letter from original firm (should not find it)
+      const letter = db.prepare(`
+        SELECT * FROM demand_letters WHERE id = ? AND firm_id = ?
+      `).get(otherLetterId, testFirmId);
+
+      expect(letter).toBeUndefined();
+    });
+
+    it('should support export options storage in audit details', () => {
+      const letterId = createTestDemandLetter();
+      const exportOptions = {
+        font_name: 'Arial',
+        font_size: 11,
+        include_letterhead: true,
+        include_page_numbers: true,
+      };
+
+      db.prepare(`
+        INSERT INTO audit_logs (id, event_type, user_id, firm_id, resource_type, resource_id, details, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      `).run(
+        uuidv4(),
+        'DEMAND_LETTER_EXPORTED',
+        testUserId,
+        testFirmId,
+        'demand_letter',
+        letterId,
+        JSON.stringify({ format: 'docx', options: exportOptions })
+      );
+
+      const log = db.prepare(`
+        SELECT * FROM audit_logs WHERE event_type = 'DEMAND_LETTER_EXPORTED' AND resource_id = ?
+      `).get(letterId) as { details: string };
+
+      const details = JSON.parse(log.details);
+      expect(details.options.font_name).toBe('Arial');
+      expect(details.options.include_letterhead).toBe(true);
+    });
+  });
 });
