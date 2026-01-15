@@ -18,6 +18,9 @@ export type AuditEventType =
   | 'TEMPLATE_CREATED'
   | 'TEMPLATE_UPDATED'
   | 'TEMPLATE_DELETED'
+  | 'TEMPLATE_APPROVED'
+  | 'TEMPLATE_UNAPPROVED'
+  | 'TEMPLATE_DUPLICATED'
   | 'DEMAND_LETTER_CREATED'
   | 'DEMAND_LETTER_UPDATED'
   | 'DEMAND_LETTER_DELETED'
@@ -34,7 +37,7 @@ export interface AuditEvent {
   resource_type?: string;
   resource_id?: string;
   details?: Record<string, unknown>;
-  ip_address?: string;
+  ip_address?: string | string[];
   user_agent?: string;
 }
 
@@ -56,6 +59,13 @@ export const logAuditEvent = async (event: AuditEvent): Promise<string> => {
   const id = uuidv4();
   const db = getDatabase();
 
+  // Handle ip_address which may be string or string[]
+  const ipAddress = event.ip_address
+    ? Array.isArray(event.ip_address)
+      ? event.ip_address[0]
+      : event.ip_address
+    : null;
+
   db.prepare(`
     INSERT INTO audit_logs (id, event_type, user_id, firm_id, resource_type, resource_id, details, ip_address, user_agent, created_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
@@ -67,7 +77,7 @@ export const logAuditEvent = async (event: AuditEvent): Promise<string> => {
     event.resource_type || null,
     event.resource_id || null,
     event.details ? JSON.stringify(event.details) : null,
-    event.ip_address || null,
+    ipAddress,
     event.user_agent || null
   );
 

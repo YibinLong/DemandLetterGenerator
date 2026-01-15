@@ -10,6 +10,7 @@ import { initializeDatabase, getDatabase } from './db/index.js';
 import authRoutes from './routes/auth.js';
 import documentRoutes from './routes/documents.js';
 import demandLetterRoutes from './routes/demand-letters.js';
+import templateRoutes from './routes/templates.js';
 import { generalRateLimit, startRateLimitCleanup } from './middleware/rateLimit.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -121,6 +122,9 @@ app.use('/api/documents', documentRoutes);
 
 // Mount demand letter routes
 app.use('/api/demand-letters', demandLetterRoutes);
+
+// Mount template routes
+app.use('/api/templates', templateRoutes);
 
 // Error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
