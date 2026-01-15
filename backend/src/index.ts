@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import compression from 'compression';
 import dotenv from 'dotenv';
 import path from 'path';
 import http from 'http';
@@ -17,6 +18,8 @@ import changeTrackingRoutes from './routes/change-tracking.js';
 import aiPromptsRoutes from './routes/ai-prompts.js';
 import { generalRateLimit, startRateLimitCleanup } from './middleware/rateLimit.js';
 import { initializeCollaboration } from './services/collaboration.js';
+import { performanceMiddleware, performanceMonitor } from './services/performance.js';
+import { cache } from './services/cache.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -79,9 +82,25 @@ app.use(cors({
   exposedHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
 }));
 
+// Response compression (gzip/brotli)
+app.use(compression({
+  level: 6, // Balanced compression level
+  threshold: 1024, // Only compress responses > 1KB
+  filter: (req, res) => {
+    // Don't compress streaming responses or already compressed content
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    return compression.filter(req, res);
+  },
+}));
+
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Performance monitoring middleware
+app.use(performanceMiddleware);
 
 // Apply general rate limiting to all API routes
 app.use('/api', generalRateLimit);
@@ -102,6 +121,28 @@ app.get('/health', (req: Request, res: Response) => {
     database: dbStatus,
     timestamp: new Date().toISOString(),
     version: '1.0.0',
+  });
+});
+
+// Performance metrics endpoint (no rate limiting, for monitoring)
+app.get('/metrics', (req: Request, res: Response) => {
+  const performanceStats = performanceMonitor.getStats();
+  const cacheStats = cache.getStats();
+
+  res.json({
+    performance: performanceStats,
+    cache: cacheStats,
+    slowRequests: performanceMonitor.getSlowRequests().slice(0, 10),
+    endpointStats: performanceMonitor.getEndpointStats(),
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Performance metrics for specific endpoint analysis
+app.get('/metrics/endpoints', (req: Request, res: Response) => {
+  res.json({
+    endpoints: performanceMonitor.getEndpointStats(),
+    timestamp: new Date().toISOString(),
   });
 });
 
