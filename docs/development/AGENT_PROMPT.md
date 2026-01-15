@@ -1,8 +1,8 @@
 # Your goal: Contribute to Creating Demand Letter Generator
 
-If the @TASK_LIST.md is not complete, complete the next Story item that needs to be done. The final product is based on @PRD_Steno_Demand_Letter_Generator.
+If the @docs/development/TASK_LIST.md is not complete, complete the next Story item that needs to be done. The final product is based on @docs/PRD.md.
 
-If @TASK_LIST.md IS ALREADY complete, simply log that everything is done in the logs folder, and reply "Done!"
+If @docs/development/TASK_LIST.md IS ALREADY complete, simply log that everything is done in the logs folder, and reply "Done!"
 
 NOTE:
 
@@ -20,6 +20,6 @@ NOTE:
 
 7. If you are stuck, feel free to SEARCH the logs for any context for information that may help you.
 
-8. Make sure you check off the story you just completed in TASK_LIST.md when you're done.
+8. Make sure you check off the story you just completed in docs/development/TASK_LIST.md when you're done.
 
 9. Think first about your implementation before you implement.
