@@ -130,6 +130,16 @@ function runMigrations(database: Database.Database, fromVersion: number): void {
         CREATE INDEX IF NOT EXISTS idx_rate_limits_identifier ON rate_limits(identifier);
       `);
     },
+    // Migration to add content_html columns for rich text editing
+    3: () => {
+      database.exec(`
+        -- Add content_html column to demand_letters table
+        ALTER TABLE demand_letters ADD COLUMN content_html TEXT;
+
+        -- Add content_html column to demand_letter_versions table
+        ALTER TABLE demand_letter_versions ADD COLUMN content_html TEXT;
+      `);
+    },
   };
 
   for (let version = fromVersion + 1; version <= SCHEMA_VERSION; version++) {

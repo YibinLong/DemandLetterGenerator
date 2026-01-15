@@ -36,6 +36,7 @@ interface CreateDemandLetterRequest {
 interface UpdateDemandLetterRequest {
   title?: string;
   content?: string;
+  content_html?: string;
   status?: 'draft' | 'in_review' | 'approved' | 'sent' | 'archived';
   case_reference?: string;
   client_name?: string;
@@ -563,6 +564,7 @@ router.patch(
       // Track if content changed for versioning
       let contentChanged = false;
       let newContent = existing.content;
+      let newContentHtml = existing.content_html;
 
       if (body.title !== undefined) {
         updates.push('title = ?');
@@ -574,6 +576,16 @@ router.patch(
         params.push(body.content);
         contentChanged = true;
         newContent = body.content;
+      }
+
+      if (body.content_html !== undefined) {
+        updates.push('content_html = ?');
+        params.push(body.content_html);
+        newContentHtml = body.content_html;
+        // If content wasn't explicitly provided but content_html was, mark as changed
+        if (body.content === undefined) {
+          contentChanged = true;
+        }
       }
 
       if (body.status !== undefined) {
@@ -632,13 +644,14 @@ router.patch(
 
         db.prepare(`
           INSERT INTO demand_letter_versions (
-            id, demand_letter_id, version_number, content, changed_by, change_summary, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            id, demand_letter_id, version_number, content, content_html, changed_by, change_summary, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
           uuidv4(),
           id,
           newVersionNumber,
           newContent,
+          newContentHtml || null,
           req.user!.id,
           'Manual edit',
           now
@@ -913,6 +926,7 @@ router.get('/:id/versions/:versionId', authenticate, async (req: AuthRequest, re
       id: version.id,
       version_number: version.version_number,
       content: version.content,
+      content_html: version.content_html,
       change_summary: version.change_summary,
       changed_by: {
         id: version.changed_by,
@@ -960,10 +974,10 @@ router.post(
 
       const now = new Date().toISOString();
 
-      // Update demand letter content
+      // Update demand letter content (including content_html if available)
       db.prepare(`
-        UPDATE demand_letters SET content = ?, updated_at = ? WHERE id = ?
-      `).run(version.content, now, id);
+        UPDATE demand_letters SET content = ?, content_html = ?, updated_at = ? WHERE id = ?
+      `).run(version.content, version.content_html || null, now, id);
 
       // Create new version for the restore
       const latestVersion = db.prepare(`
@@ -974,13 +988,14 @@ router.post(
 
       db.prepare(`
         INSERT INTO demand_letter_versions (
-          id, demand_letter_id, version_number, content, changed_by, change_summary, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+          id, demand_letter_id, version_number, content, content_html, changed_by, change_summary, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         uuidv4(),
         id,
         newVersionNumber,
         version.content,
+        version.content_html || null,
         req.user!.id,
         `Restored from version ${version.version_number}`,
         now

@@ -1,7 +1,7 @@
 // Database schema definitions for Demand Letter Generator
 // Using SQLite with better-sqlite3
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 // SQL statements for creating all tables
 export const CREATE_TABLES_SQL = `
@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS demand_letters (
   template_id TEXT,
   title TEXT NOT NULL,
   content TEXT NOT NULL,
+  content_html TEXT, -- HTML formatted content for rich text editing
   status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'in_review', 'approved', 'sent', 'archived')),
   case_reference TEXT,
   client_name TEXT,
@@ -109,6 +110,7 @@ CREATE TABLE IF NOT EXISTS demand_letter_versions (
   demand_letter_id TEXT NOT NULL,
   version_number INTEGER NOT NULL,
   content TEXT NOT NULL,
+  content_html TEXT, -- HTML formatted content for rich text editing
   changed_by TEXT NOT NULL,
   change_summary TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -253,6 +255,7 @@ export interface DemandLetter {
   template_id?: string;
   title: string;
   content: string;
+  content_html?: string;
   status: 'draft' | 'in_review' | 'approved' | 'sent' | 'archived';
   case_reference?: string;
   client_name?: string;
@@ -270,6 +273,7 @@ export interface DemandLetterVersion {
   demand_letter_id: string;
   version_number: number;
   content: string;
+  content_html?: string;
   changed_by: string;
   change_summary?: string;
   created_at: string;

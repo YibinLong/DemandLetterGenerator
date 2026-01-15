@@ -9,6 +9,7 @@ export interface DemandLetter {
   template_id?: string;
   title: string;
   content: string;
+  content_html?: string;
   status: DemandLetterStatus;
   case_reference?: string;
   client_name?: string;
@@ -98,6 +99,7 @@ export interface CreateDemandLetterResponse {
 export interface UpdateDemandLetterRequest {
   title?: string;
   content?: string;
+  content_html?: string;
   status?: DemandLetterStatus;
   case_reference?: string;
   client_name?: string;
@@ -130,6 +132,7 @@ export interface DemandLetterVersion {
   id: string;
   version_number: number;
   content?: string;
+  content_html?: string;
   change_summary?: string;
   changed_by: {
     id: string;

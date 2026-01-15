@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getDemandLetter,
@@ -18,11 +18,92 @@ import type {
 } from '../types/demand-letter';
 import { RefinementPanel } from './RefinementPanel';
 import { ExportDialog } from './ExportDialog';
+import { RichTextEditor } from './RichTextEditor';
 
 interface DemandLetterViewProps {
   letterId: string;
   onBack?: () => void;
   onDeleted?: () => void;
+}
+
+// Helper function to convert plain text to HTML for the rich text editor
+function convertPlainTextToHtml(text: string): string {
+  if (!text) return '<p></p>';
+
+  // Split by double newlines for paragraphs
+  const paragraphs = text.split(/\n\n+/);
+
+  return paragraphs
+    .map(para => {
+      // Handle single newlines within paragraphs
+      const lines = para.split(/\n/);
+      if (lines.length > 1) {
+        return `<p>${lines.join('<br>')}</p>`;
+      }
+      return `<p>${para}</p>`;
+    })
+    .join('');
+}
+
+// Helper function to convert HTML to plain text for storage
+function convertHtmlToPlainText(html: string): string {
+  if (!html) return '';
+
+  // Create a temporary element to parse HTML
+  const temp = document.createElement('div');
+  temp.innerHTML = html;
+
+  // Handle specific elements
+  const result: string[] = [];
+
+  function processNode(node: Node): void {
+    if (node.nodeType === Node.TEXT_NODE) {
+      result.push(node.textContent || '');
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const element = node as HTMLElement;
+      const tagName = element.tagName.toLowerCase();
+
+      // Handle block elements
+      if (['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tagName)) {
+        if (result.length > 0 && result[result.length - 1] !== '\n\n') {
+          result.push('\n\n');
+        }
+        element.childNodes.forEach(child => processNode(child));
+      } else if (tagName === 'br') {
+        result.push('\n');
+      } else if (tagName === 'li') {
+        if (element.parentElement?.tagName.toLowerCase() === 'ol') {
+          const index = Array.from(element.parentElement.children).indexOf(element) + 1;
+          result.push(`${index}. `);
+        } else {
+          result.push('• ');
+        }
+        element.childNodes.forEach(child => processNode(child));
+        result.push('\n');
+      } else if (['ul', 'ol'].includes(tagName)) {
+        if (result.length > 0 && result[result.length - 1] !== '\n') {
+          result.push('\n');
+        }
+        element.childNodes.forEach(child => processNode(child));
+      } else if (tagName === 'blockquote') {
+        if (result.length > 0) result.push('\n');
+        result.push('> ');
+        element.childNodes.forEach(child => processNode(child));
+        result.push('\n');
+      } else if (tagName === 'hr') {
+        result.push('\n---\n');
+      } else {
+        element.childNodes.forEach(child => processNode(child));
+      }
+    }
+  }
+
+  processNode(temp);
+
+  // Clean up extra whitespace
+  return result.join('')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 type ViewTab = 'content' | 'details' | 'versions';
@@ -37,6 +118,7 @@ export function DemandLetterView({ letterId, onBack }: DemandLetterViewProps) {
   const [showRefinementPanel, setShowRefinementPanel] = useState(false);
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [showExportDialog, setShowExportDialog] = useState(false);
+  const editorContentRef = useRef<string>('');
 
   // Fetch demand letter
   const { data: letter, isLoading, error } = useQuery<DemandLetter>({
@@ -60,7 +142,7 @@ export function DemandLetterView({ letterId, onBack }: DemandLetterViewProps) {
 
   // Update mutation
   const updateMutation = useMutation({
-    mutationFn: (data: { content?: string; status?: DemandLetterStatus }) =>
+    mutationFn: (data: { content?: string; content_html?: string; status?: DemandLetterStatus }) =>
       updateDemandLetter(letterId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['demandLetter', letterId] });
@@ -89,18 +171,30 @@ export function DemandLetterView({ letterId, onBack }: DemandLetterViewProps) {
   // Handlers
   const handleStartEdit = useCallback(() => {
     if (letter) {
-      setEditedContent(letter.content);
+      // Convert plain text to HTML-friendly format for rich text editor
+      const htmlContent = letter.content_html || convertPlainTextToHtml(letter.content);
+      setEditedContent(htmlContent);
+      editorContentRef.current = htmlContent;
       setIsEditing(true);
     }
   }, [letter]);
 
-  const handleSaveEdit = useCallback(() => {
-    updateMutation.mutate({ content: editedContent });
-  }, [editedContent, updateMutation]);
+  const handleEditorChange = useCallback((html: string) => {
+    editorContentRef.current = html;
+    setEditedContent(html);
+  }, []);
+
+  const handleSaveEdit = useCallback(async (content?: string) => {
+    const contentToSave = content || editorContentRef.current;
+    // Convert HTML to plain text for backward compatibility
+    const plainText = convertHtmlToPlainText(contentToSave);
+    updateMutation.mutate({ content: plainText, content_html: contentToSave });
+  }, [updateMutation]);
 
   const handleCancelEdit = useCallback(() => {
     setIsEditing(false);
     setEditedContent('');
+    editorContentRef.current = '';
   }, []);
 
   const handleStatusChange = useCallback((status: DemandLetterStatus) => {
@@ -249,7 +343,7 @@ export function DemandLetterView({ letterId, onBack }: DemandLetterViewProps) {
                   Cancel
                 </button>
                 <button
-                  onClick={handleSaveEdit}
+                  onClick={() => handleSaveEdit()}
                   className="save-edit-button"
                   disabled={updateMutation.isPending}
                 >
@@ -260,16 +354,24 @@ export function DemandLetterView({ letterId, onBack }: DemandLetterViewProps) {
           </div>
 
           {isEditing ? (
-            <textarea
-              value={editedContent}
-              onChange={(e) => setEditedContent(e.target.value)}
-              className="content-editor"
+            <RichTextEditor
+              content={editedContent}
+              onChange={handleEditorChange}
+              onSave={handleSaveEdit}
               placeholder="Enter demand letter content..."
+              editable={true}
+              autoSave={true}
+              autoSaveDelay={3000}
+              showToolbar={true}
+              className="demand-letter-editor"
             />
           ) : (
-            <div className="content-display">
-              {letter.content}
-            </div>
+            <div
+              className="content-display rich-content"
+              dangerouslySetInnerHTML={{
+                __html: letter.content_html || convertPlainTextToHtml(letter.content)
+              }}
+            />
           )}
         </div>
       )}
@@ -365,9 +467,12 @@ export function DemandLetterView({ letterId, onBack }: DemandLetterViewProps) {
                       </button>
                     )}
                   </div>
-                  <div className="preview-content">
-                    {selectedVersion.content}
-                  </div>
+                  <div
+                    className="preview-content rich-content"
+                    dangerouslySetInnerHTML={{
+                      __html: selectedVersion.content_html || convertPlainTextToHtml(selectedVersion.content || '')
+                    }}
+                  />
                 </>
               ) : (
                 <div className="no-selection">
@@ -664,8 +769,71 @@ export function DemandLetterView({ letterId, onBack }: DemandLetterViewProps) {
           padding: 20px;
           font-size: 14px;
           line-height: 1.8;
-          white-space: pre-wrap;
           color: #374151;
+        }
+
+        .content-display.rich-content p {
+          margin: 0 0 1em;
+        }
+
+        .content-display.rich-content h1 {
+          font-size: 1.75em;
+          font-weight: 700;
+          margin: 0 0 0.5em;
+          color: #111827;
+        }
+
+        .content-display.rich-content h2 {
+          font-size: 1.5em;
+          font-weight: 600;
+          margin: 0 0 0.5em;
+          color: #1f2937;
+        }
+
+        .content-display.rich-content h3 {
+          font-size: 1.25em;
+          font-weight: 600;
+          margin: 0 0 0.5em;
+          color: #374151;
+        }
+
+        .content-display.rich-content ul,
+        .content-display.rich-content ol {
+          margin: 0 0 1em;
+          padding-left: 1.5em;
+        }
+
+        .content-display.rich-content li {
+          margin-bottom: 0.25em;
+        }
+
+        .content-display.rich-content blockquote {
+          margin: 1em 0;
+          padding: 0.5em 1em;
+          border-left: 3px solid #3b82f6;
+          background: #f9fafb;
+          color: #4b5563;
+          font-style: italic;
+        }
+
+        .content-display.rich-content hr {
+          border: none;
+          border-top: 2px solid #e5e7eb;
+          margin: 1.5em 0;
+        }
+
+        .content-display.rich-content mark {
+          background-color: #fef08a;
+          padding: 0.1em 0.2em;
+          border-radius: 2px;
+        }
+
+        .demand-letter-editor {
+          min-height: 400px;
+        }
+
+        .demand-letter-editor .editor-container {
+          min-height: 400px;
         }
 
         /* Details Tab */

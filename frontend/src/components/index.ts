@@ -9,6 +9,7 @@ export { DemandLetterList } from './DemandLetterList';
 export { DemandLetterView } from './DemandLetterView';
 export { RefinementPanel } from './RefinementPanel';
 export { ExportDialog } from './ExportDialog';
+export { RichTextEditor } from './RichTextEditor';
 
 // Template components
 export { TemplateList } from './TemplateList';
