@@ -8,6 +8,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { initializeDatabase, getDatabase } from './db/index.js';
 import authRoutes from './routes/auth.js';
+import documentRoutes from './routes/documents.js';
 import { generalRateLimit, startRateLimitCleanup } from './middleware/rateLimit.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -113,6 +114,9 @@ app.get('/api', (req: Request, res: Response) => {
 
 // Mount auth routes
 app.use('/api/auth', authRoutes);
+
+// Mount document routes
+app.use('/api/documents', documentRoutes);
 
 // Error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
