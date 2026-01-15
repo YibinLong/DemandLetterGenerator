@@ -8,10 +8,12 @@ import {
   getAvailableModels,
   formatDate,
 } from '../lib/demand-letters';
+import { listAIPrompts, formatPromptType, getCategoryColor } from '../lib/ai-prompts';
 import type {
   RefineResponse,
   AIGenerationHistoryItem,
 } from '../types/demand-letter';
+import type { AIPromptTemplateListItem } from '../types/ai-prompt';
 
 interface RefinementPanelProps {
   letterId: string;
@@ -35,7 +37,7 @@ const QUICK_ACTIONS: QuickAction[] = [
   { label: 'Strengthen liability', instruction: 'Strengthen the arguments for defendant liability with clearer reasoning.' },
 ];
 
-type PanelTab = 'refine' | 'history' | 'versions';
+type PanelTab = 'refine' | 'history' | 'versions' | 'prompts';
 
 export function RefinementPanel({
   letterId,
@@ -47,6 +49,7 @@ export function RefinementPanel({
   const [selectedModel, setSelectedModel] = useState('gpt-4o-mini');
   const [showModelSelect, setShowModelSelect] = useState(false);
   const [refinementCount, setRefinementCount] = useState(0);
+  const [selectedPromptTemplate, setSelectedPromptTemplate] = useState<AIPromptTemplateListItem | null>(null);
 
   // Fetch available models
   const { data: modelsData } = useQuery({
@@ -67,6 +70,14 @@ export function RefinementPanel({
     queryKey: ['demandLetterVersions', letterId],
     queryFn: () => getDemandLetterVersions(letterId),
     enabled: activeTab === 'versions',
+  });
+
+  // Fetch AI prompt templates
+  const { data: promptsData } = useQuery({
+    queryKey: ['aiPromptTemplates', 'refinement'],
+    queryFn: () => listAIPrompts({ prompt_type: 'refinement', include_defaults: true }),
+    staleTime: 300000, // 5 minutes
+    enabled: activeTab === 'prompts',
   });
 
   // Count refinements from history
@@ -115,6 +126,32 @@ export function RefinementPanel({
   // Handle quick action
   const handleQuickAction = useCallback((action: QuickAction) => {
     setInstructions(action.instruction);
+    setSelectedPromptTemplate(null);
+  }, []);
+
+  // Handle prompt template selection
+  const handlePromptTemplateSelect = useCallback((prompt: AIPromptTemplateListItem) => {
+    setSelectedPromptTemplate(prompt);
+    // If template has a simple instruction pattern, use it
+    // Otherwise, the user can modify the instructions
+    const instructionMatch = prompt.name.toLowerCase();
+    if (instructionMatch.includes('assertive')) {
+      setInstructions('Make the tone more assertive and demanding while remaining professional.');
+    } else if (instructionMatch.includes('shorten') || instructionMatch.includes('condense')) {
+      setInstructions('Condense this letter while keeping all essential information and legal arguments.');
+    } else if (instructionMatch.includes('detail')) {
+      setInstructions('Expand on the key facts and damages with more specific detail.');
+    } else if (instructionMatch.includes('formal')) {
+      setInstructions('Revise to use more formal legal language throughout.');
+    } else if (instructionMatch.includes('damage')) {
+      setInstructions('Provide a clearer breakdown and explanation of the damages claimed.');
+    } else if (instructionMatch.includes('liability')) {
+      setInstructions('Strengthen the arguments for defendant liability with clearer reasoning.');
+    } else {
+      // Use the prompt description or a generic instruction
+      setInstructions(prompt.description || `Apply the "${prompt.name}" prompt template.`);
+    }
+    setActiveTab('refine');
   }, []);
 
   // Handle undo (restore previous version)
@@ -162,6 +199,12 @@ export function RefinementPanel({
             onClick={() => setActiveTab('versions')}
           >
             Versions
+          </button>
+          <button
+            className={`panel-tab ${activeTab === 'prompts' ? 'active' : ''}`}
+            onClick={() => setActiveTab('prompts')}
+          >
+            Prompts
           </button>
         </div>
 
@@ -370,6 +413,47 @@ export function RefinementPanel({
           ) : (
             <div className="empty-state">
               No version history available.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Prompts Tab */}
+      {activeTab === 'prompts' && (
+        <div className="prompts-tab">
+          <p className="prompts-description">
+            Select a custom prompt template to use for refining this letter.
+          </p>
+          {promptsData?.prompts && promptsData.prompts.length > 0 ? (
+            <div className="prompts-list">
+              {promptsData.prompts.map((prompt) => (
+                <div
+                  key={prompt.id}
+                  className={`prompt-item ${selectedPromptTemplate?.id === prompt.id ? 'selected' : ''}`}
+                  onClick={() => handlePromptTemplateSelect(prompt)}
+                >
+                  <div className="prompt-item-header">
+                    <span className="prompt-name">{prompt.name}</span>
+                    {prompt.is_default && <span className="default-badge">Default</span>}
+                  </div>
+                  <p className="prompt-description">{prompt.description || 'No description'}</p>
+                  <div className="prompt-item-meta">
+                    {prompt.category && (
+                      <span
+                        className="category-tag"
+                        style={{ backgroundColor: getCategoryColor(prompt.category) }}
+                      >
+                        {prompt.category}
+                      </span>
+                    )}
+                    <span className="usage-count">{prompt.usage_count} uses</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              No prompt templates available. Create one in the AI Prompts page.
             </div>
           )}
         </div>
@@ -799,6 +883,91 @@ export function RefinementPanel({
           padding: 40px 20px;
           color: #9ca3af;
           font-size: 14px;
+        }
+
+        /* Prompts Tab */
+        .prompts-tab {
+          padding: 16px;
+          overflow-y: auto;
+        }
+
+        .prompts-description {
+          font-size: 13px;
+          color: #6b7280;
+          margin: 0 0 16px 0;
+        }
+
+        .prompts-list {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .prompt-item {
+          background: white;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          padding: 12px;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .prompt-item:hover {
+          border-color: #3b82f6;
+          background: #fafafa;
+        }
+
+        .prompt-item.selected {
+          border-color: #3b82f6;
+          background: #eff6ff;
+        }
+
+        .prompt-item-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 6px;
+        }
+
+        .prompt-name {
+          font-size: 14px;
+          font-weight: 500;
+          color: #374151;
+        }
+
+        .default-badge {
+          padding: 2px 6px;
+          background: #dbeafe;
+          color: #1d4ed8;
+          border-radius: 4px;
+          font-size: 10px;
+          font-weight: 500;
+        }
+
+        .prompt-description {
+          font-size: 12px;
+          color: #6b7280;
+          margin: 0 0 8px 0;
+          line-height: 1.4;
+        }
+
+        .prompt-item-meta {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .category-tag {
+          padding: 2px 6px;
+          border-radius: 4px;
+          font-size: 10px;
+          color: white;
+          font-weight: 500;
+        }
+
+        .usage-count {
+          font-size: 11px;
+          color: #9ca3af;
         }
       `}</style>
     </div>
