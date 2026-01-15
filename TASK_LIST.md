@@ -55,20 +55,20 @@
 
 ---
 
-## **EPIC 2: DOCUMENT MANAGEMENT (P0)** ⬜
+## **EPIC 2: DOCUMENT MANAGEMENT (P0)** 🟦
 
-### **Story 2.1: Document Upload System** ⬜
+### **Story 2.1: Document Upload System** ✅
 
 **Story:** As an attorney, I want to upload source documents so that they can be processed for demand letter generation
 
-- ⬜ **Task 2.1.1:** Create file upload API endpoint in NodeJS backend
-- ⬜ **Task 2.1.2:** Implement file validation (supported formats: PDF, DOCX, TXT)
-- ⬜ **Task 2.1.3:** Set up secure file storage system
-- ⬜ **Task 2.1.4:** Create document upload UI component in React
-- ⬜ **Task 2.1.5:** Implement drag-and-drop file upload functionality
-- ⬜ **Task 2.1.6:** Add upload progress indicator
-- ⬜ **Task 2.1.7:** Implement multi-file upload support
-- ⬜ **Task 2.1.8:** Create document metadata storage (filename, upload date, file type, size)
+- ✅ **Task 2.1.1:** Create file upload API endpoint in NodeJS backend
+- ✅ **Task 2.1.2:** Implement file validation (supported formats: PDF, DOCX, TXT)
+- ✅ **Task 2.1.3:** Set up secure file storage system
+- ✅ **Task 2.1.4:** Create document upload UI component in React
+- ✅ **Task 2.1.5:** Implement drag-and-drop file upload functionality
+- ✅ **Task 2.1.6:** Add upload progress indicator
+- ✅ **Task 2.1.7:** Implement multi-file upload support
+- ✅ **Task 2.1.8:** Create document metadata storage (filename, upload date, file type, size)
 
 **Acceptance:** Users can upload multiple source documents via drag-and-drop, files are securely stored.
 
@@ -389,7 +389,7 @@
 | Epic | Priority | Stories | Tasks | Status |
 |------|----------|---------|-------|--------|
 | Epic 1: Project Setup | P0 | 3 | 22 | ✅ (3/3 Stories) |
-| Epic 2: Document Management | P0 | 2 | 15 | ⬜ |
+| Epic 2: Document Management | P0 | 2 | 15 | 🟦 (1/2 Stories) |
 | Epic 3: AI Demand Letter Generation | P0 | 3 | 20 | ⬜ |
 | Epic 4: Template Management | P0 | 2 | 13 | ⬜ |
 | Epic 5: Document Export | P0 | 1 | 7 | ⬜ |
