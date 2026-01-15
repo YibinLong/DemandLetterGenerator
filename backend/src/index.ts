@@ -14,6 +14,7 @@ import demandLetterRoutes from './routes/demand-letters.js';
 import templateRoutes from './routes/templates.js';
 import collaborationRoutes from './routes/collaboration.js';
 import changeTrackingRoutes from './routes/change-tracking.js';
+import aiPromptsRoutes from './routes/ai-prompts.js';
 import { generalRateLimit, startRateLimitCleanup } from './middleware/rateLimit.js';
 import { initializeCollaboration } from './services/collaboration.js';
 
@@ -116,6 +117,7 @@ app.get('/api', (req: Request, res: Response) => {
       demandLetters: '/api/demand-letters',
       collaboration: '/api/collaboration',
       changeTracking: '/api/change-tracking',
+      aiPrompts: '/api/ai-prompts',
     },
     websocket: {
       collaboration: '/collaboration',
@@ -140,6 +142,9 @@ app.use('/api/collaboration', collaborationRoutes);
 
 // Mount change tracking routes
 app.use('/api/change-tracking', changeTrackingRoutes);
+
+// Mount AI prompts routes
+app.use('/api/ai-prompts', aiPromptsRoutes);
 
 // Error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
