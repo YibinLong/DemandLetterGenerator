@@ -25,16 +25,16 @@
 
 ---
 
-### **Story 1.2: Database Setup** ⬜
+### **Story 1.2: Database Setup** ✅
 
 **Story:** Set up SQLite database with initial schema for data persistence
 
-- ⬜ **Task 1.2.1:** Design database schema (users, firms, documents, templates, demand_letters tables)
-- ⬜ **Task 1.2.2:** Create SQLite database initialization script
-- ⬜ **Task 1.2.3:** Implement database connection module in NodeJS backend
-- ⬜ **Task 1.2.4:** Create database migration system for schema updates
-- ⬜ **Task 1.2.5:** Seed database with sample test data
-- ⬜ **Task 1.2.6:** Test database CRUD operations
+- ✅ **Task 1.2.1:** Design database schema (users, firms, documents, templates, demand_letters tables)
+- ✅ **Task 1.2.2:** Create SQLite database initialization script
+- ✅ **Task 1.2.3:** Implement database connection module in NodeJS backend
+- ✅ **Task 1.2.4:** Create database migration system for schema updates
+- ✅ **Task 1.2.5:** Seed database with sample test data
+- ✅ **Task 1.2.6:** Test database CRUD operations
 
 **Acceptance:** Database is initialized with proper schema, can perform all CRUD operations.
 
@@ -388,7 +388,7 @@
 
 | Epic | Priority | Stories | Tasks | Status |
 |------|----------|---------|-------|--------|
-| Epic 1: Project Setup | P0 | 3 | 22 | 🟦 |
+| Epic 1: Project Setup | P0 | 3 | 22 | 🟦 (2/3 Stories) |
 | Epic 2: Document Management | P0 | 2 | 15 | ⬜ |
 | Epic 3: AI Demand Letter Generation | P0 | 3 | 20 | ⬜ |
 | Epic 4: Template Management | P0 | 2 | 13 | ⬜ |
