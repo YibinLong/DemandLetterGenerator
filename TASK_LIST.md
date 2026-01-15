@@ -107,18 +107,18 @@
 
 ---
 
-### **Story 3.2: Draft Demand Letter Generation** ⬜
+### **Story 3.2: Draft Demand Letter Generation** ✅
 
 **Story:** As an attorney, I want to generate a draft demand letter from my source documents
 
-- ⬜ **Task 3.2.1:** Create demand letter generation API endpoint
-- ⬜ **Task 3.2.2:** Implement source document aggregation and preprocessing
-- ⬜ **Task 3.2.3:** Build AI prompt construction with template integration
-- ⬜ **Task 3.2.4:** Implement streaming response for real-time generation feedback
-- ⬜ **Task 3.2.5:** Create demand letter generation UI workflow
-- ⬜ **Task 3.2.6:** Add generation status tracking and notifications
-- ⬜ **Task 3.2.7:** Implement draft storage and versioning
-- ⬜ **Task 3.2.8:** Ensure response time < 5 seconds for initial response
+- ✅ **Task 3.2.1:** Create demand letter generation API endpoint
+- ✅ **Task 3.2.2:** Implement source document aggregation and preprocessing
+- ✅ **Task 3.2.3:** Build AI prompt construction with template integration
+- ✅ **Task 3.2.4:** Implement streaming response for real-time generation feedback
+- ✅ **Task 3.2.5:** Create demand letter generation UI workflow
+- ✅ **Task 3.2.6:** Add generation status tracking and notifications
+- ✅ **Task 3.2.7:** Implement draft storage and versioning
+- ✅ **Task 3.2.8:** Ensure response time < 5 seconds for initial response
 
 **Acceptance:** Users can generate a draft demand letter from uploaded source documents with AI.
 
@@ -390,7 +390,7 @@
 |------|----------|---------|-------|--------|
 | Epic 1: Project Setup | P0 | 3 | 22 | ✅ (3/3 Stories) |
 | Epic 2: Document Management | P0 | 2 | 15 | ✅ (2/2 Stories) |
-| Epic 3: AI Demand Letter Generation | P0 | 3 | 20 | 🟦 (1/3 Stories) |
+| Epic 3: AI Demand Letter Generation | P0 | 3 | 20 | 🟦 (2/3 Stories) |
 | Epic 4: Template Management | P0 | 2 | 13 | ⬜ |
 | Epic 5: Document Export | P0 | 1 | 7 | ⬜ |
 | Epic 6: Document Editing & Collaboration | P1 | 3 | 18 | ⬜ |
