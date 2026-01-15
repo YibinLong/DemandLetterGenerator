@@ -25,3 +25,14 @@ export { TemplateList } from './TemplateList';
 export { TemplateEditor } from './TemplateEditor';
 export { TemplatePreview } from './TemplatePreview';
 export { FirmTemplateLibrary } from './FirmTemplateLibrary';
+
+// AI Prompts components
+export { default as AIPromptsPage } from './AIPromptsPage';
+export { default as AIPromptEditor } from './AIPromptEditor';
+export { default as AIPromptTester } from './AIPromptTester';
+
+// Common components
+export * from './common';
+
+// Layout components
+export * from './layout';
