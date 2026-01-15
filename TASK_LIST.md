@@ -172,19 +172,19 @@
 
 ---
 
-## **EPIC 5: DOCUMENT EXPORT (P0)** ⬜
+## **EPIC 5: DOCUMENT EXPORT (P0)** ✅
 
-### **Story 5.1: Word Document Export** ⬜
+### **Story 5.1: Word Document Export** ✅
 
 **Story:** As an attorney, I want to export the final demand letter to a Word document
 
-- ⬜ **Task 5.1.1:** Install and configure python-docx library
-- ⬜ **Task 5.1.2:** Create Word document generation service
-- ⬜ **Task 5.1.3:** Implement styling and formatting for exported documents
-- ⬜ **Task 5.1.4:** Create export API endpoint
-- ⬜ **Task 5.1.5:** Build export button and download flow in UI
-- ⬜ **Task 5.1.6:** Add export options (font, margins, letterhead)
-- ⬜ **Task 5.1.7:** Implement batch export functionality
+- ✅ **Task 5.1.1:** Install and configure python-docx library
+- ✅ **Task 5.1.2:** Create Word document generation service
+- ✅ **Task 5.1.3:** Implement styling and formatting for exported documents
+- ✅ **Task 5.1.4:** Create export API endpoint
+- ✅ **Task 5.1.5:** Build export button and download flow in UI
+- ✅ **Task 5.1.6:** Add export options (font, margins, letterhead)
+- ✅ **Task 5.1.7:** Implement batch export functionality
 
 **Acceptance:** Users can export demand letters as properly formatted Word documents.
 
@@ -392,7 +392,7 @@
 | Epic 2: Document Management | P0 | 2 | 15 | ✅ (2/2 Stories) |
 | Epic 3: AI Demand Letter Generation | P0 | 3 | 20 | ✅ (3/3 Stories) |
 | Epic 4: Template Management | P0 | 2 | 13 | ✅ (2/2 Stories) |
-| Epic 5: Document Export | P0 | 1 | 7 | ⬜ |
+| Epic 5: Document Export | P0 | 1 | 7 | ✅ (1/1 Stories) |
 | Epic 6: Document Editing & Collaboration | P1 | 3 | 18 | ⬜ |
 | Epic 7: Customizable AI Prompts | P1 | 1 | 7 | ⬜ |
 | Epic 8: User Interface & Experience | P0 | 3 | 17 | ⬜ |
