@@ -15,6 +15,11 @@ export { RichTextEditor } from './RichTextEditor';
 export { CollaborativeEditor } from './CollaborativeEditor';
 export { ShareDialog } from './ShareDialog';
 
+// Change tracking components
+export { ChangeTrackingPanel } from './ChangeTrackingPanel';
+export { CommentPanel } from './CommentPanel';
+export { VersionComparison } from './VersionComparison';
+
 // Template components
 export { TemplateList } from './TemplateList';
 export { TemplateEditor } from './TemplateEditor';
