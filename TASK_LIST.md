@@ -272,16 +272,16 @@
 
 ---
 
-### **Story 8.2: Accessibility** ⬜
+### **Story 8.2: Accessibility** ✅
 
 **Story:** Ensure the application is accessible to users with disabilities
 
-- ⬜ **Task 8.2.1:** Implement keyboard navigation throughout the app
-- ⬜ **Task 8.2.2:** Add ARIA labels and roles to all interactive elements
-- ⬜ **Task 8.2.3:** Ensure color contrast meets WCAG 2.1 AA standards
-- ⬜ **Task 8.2.4:** Implement screen reader compatibility
-- ⬜ **Task 8.2.5:** Add focus indicators for all interactive elements
-- ⬜ **Task 8.2.6:** Test with accessibility tools (Lighthouse, axe)
+- ✅ **Task 8.2.1:** Implement keyboard navigation throughout the app
+- ✅ **Task 8.2.2:** Add ARIA labels and roles to all interactive elements
+- ✅ **Task 8.2.3:** Ensure color contrast meets WCAG 2.1 AA standards
+- ✅ **Task 8.2.4:** Implement screen reader compatibility
+- ✅ **Task 8.2.5:** Add focus indicators for all interactive elements
+- ✅ **Task 8.2.6:** Test with accessibility tools (Lighthouse, axe)
 
 **Acceptance:** Application passes accessibility audits and is usable with assistive technologies.
 
@@ -395,7 +395,7 @@
 | Epic 5: Document Export | P0 | 1 | 7 | ✅ (1/1 Stories) |
 | Epic 6: Document Editing & Collaboration | P1 | 3 | 18 | ✅ (3/3 Stories) |
 | Epic 7: Customizable AI Prompts | P1 | 1 | 7 | ✅ (1/1 Stories) |
-| Epic 8: User Interface & Experience | P0 | 3 | 17 | 🟦 (1/3 Stories) |
+| Epic 8: User Interface & Experience | P0 | 3 | 17 | 🟦 (2/3 Stories) |
 | Epic 9: Performance & Scalability | P0 | 2 | 13 | ⬜ |
 | Epic 10: Testing & Quality Assurance | P0 | 2 | 13 | ⬜ |
 | Epic 11: Document Management Integration | P2 | 1 | 6 | ⬜ |
