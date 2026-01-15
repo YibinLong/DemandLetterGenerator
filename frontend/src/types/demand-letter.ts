@@ -223,3 +223,95 @@ export interface ExportOptionsResponse {
     email?: string;
   } | null;
 }
+
+// Change tracking types
+export type ChangeType = 'insertion' | 'deletion' | 'modification' | 'format';
+export type ChangeStatus = 'pending' | 'accepted' | 'rejected';
+
+export interface DocumentChange {
+  id: string;
+  demand_letter_id: string;
+  version_id?: string;
+  user_id: string;
+  change_type: ChangeType;
+  position_start: number;
+  position_end: number;
+  old_content?: string;
+  new_content?: string;
+  status: ChangeStatus;
+  reviewed_by?: string;
+  reviewed_at?: string;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  // Extended user info
+  user_name: string;
+  user_email: string;
+  reviewer_name?: string;
+  reviewer_email?: string;
+}
+
+export interface DocumentComment {
+  id: string;
+  demand_letter_id: string;
+  change_id?: string;
+  user_id: string;
+  parent_id?: string;
+  content: string;
+  position_start?: number;
+  position_end?: number;
+  is_resolved: number;
+  resolved_by?: string;
+  resolved_at?: string;
+  created_at: string;
+  updated_at: string;
+  // Extended user info
+  user_name: string;
+  user_email: string;
+  resolver_name?: string;
+  resolver_email?: string;
+  // Nested replies
+  replies?: DocumentComment[];
+}
+
+export interface ChangesListResponse {
+  changes: DocumentChange[];
+  total: number;
+  pending_count: number;
+  accepted_count: number;
+  rejected_count: number;
+}
+
+export interface CommentsListResponse {
+  comments: DocumentComment[];
+  total: number;
+  unresolved_count: number;
+}
+
+export interface CreateChangeRequest {
+  change_type: ChangeType;
+  position_start: number;
+  position_end: number;
+  old_content?: string;
+  new_content?: string;
+  version_id?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface CreateCommentRequest {
+  content: string;
+  change_id?: string;
+  parent_id?: string;
+  position_start?: number;
+  position_end?: number;
+}
+
+export interface VersionCompareResponse {
+  from: DemandLetterVersion & {
+    content: string;
+    content_html?: string;
+  };
+  to: DemandLetterVersion & {
+    content: string;
+    content_html?: string;
+  };
+}
