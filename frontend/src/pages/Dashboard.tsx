@@ -17,16 +17,31 @@ interface StatCardProps {
 }
 
 function StatCard({ label, value, icon, color, onClick }: StatCardProps) {
+  // Handle keyboard activation for interactive cards
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      onClick();
+    }
+  };
+
   return (
-    <div className="stat-card" onClick={onClick} role={onClick ? 'button' : undefined} tabIndex={onClick ? 0 : undefined}>
-      <div className="stat-icon" style={{ background: `${color}15`, color }}>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <div
+      className="stat-card"
+      onClick={onClick}
+      onKeyDown={handleKeyDown}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      aria-label={onClick ? `${label}: ${value}. Click to view.` : undefined}
+    >
+      <div className="stat-icon" style={{ background: `${color}15`, color }} aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d={icon} />
         </svg>
       </div>
       <div className="stat-info">
-        <span className="stat-value">{value}</span>
-        <span className="stat-label">{label}</span>
+        <span className="stat-value" aria-hidden={onClick ? 'true' : undefined}>{value}</span>
+        <span className="stat-label" aria-hidden={onClick ? 'true' : undefined}>{label}</span>
       </div>
 
       <style>{`
@@ -90,17 +105,22 @@ interface QuickActionProps {
 
 function QuickAction({ label, description, icon, onClick }: QuickActionProps) {
   return (
-    <button className="quick-action" onClick={onClick}>
-      <div className="action-icon">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <button
+      className="quick-action"
+      onClick={onClick}
+      aria-label={`${label}: ${description}`}
+      type="button"
+    >
+      <div className="action-icon" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d={icon} />
         </svg>
       </div>
       <div className="action-text">
-        <span className="action-label">{label}</span>
-        <span className="action-desc">{description}</span>
+        <span className="action-label" aria-hidden="true">{label}</span>
+        <span className="action-desc" aria-hidden="true">{description}</span>
       </div>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="action-arrow">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="action-arrow" aria-hidden="true">
         <polyline points="9 18 15 12 9 6" />
       </svg>
 
@@ -168,17 +188,34 @@ function QuickAction({ label, description, icon, onClick }: QuickActionProps) {
 }
 
 function RecentLetterCard({ letter, onClick }: { letter: DemandLetterListItem; onClick: () => void }) {
+  // Handle keyboard activation
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onClick();
+    }
+  };
+
+  const cardLabel = `${letter.title}${letter.client_name ? ` for ${letter.client_name}` : ''}. Status: ${formatStatus(letter.status)}. Updated ${formatRelativeTime(letter.updated_at)}. Click to open.`;
+
   return (
-    <div className="recent-letter-card" onClick={onClick} role="button" tabIndex={0}>
-      <div className="letter-header">
+    <article
+      className="recent-letter-card"
+      onClick={onClick}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
+      aria-label={cardLabel}
+    >
+      <div className="letter-header" aria-hidden="true">
         <span className="letter-status" style={{ background: getStatusColor(letter.status) }}>
           {formatStatus(letter.status)}
         </span>
         <span className="letter-version">v{letter.version_count}</span>
       </div>
-      <h4 className="letter-title">{letter.title}</h4>
-      {letter.client_name && <p className="letter-client">{letter.client_name}</p>}
-      <span className="letter-updated">{formatRelativeTime(letter.updated_at)}</span>
+      <h4 className="letter-title" aria-hidden="true">{letter.title}</h4>
+      {letter.client_name && <p className="letter-client" aria-hidden="true">{letter.client_name}</p>}
+      <span className="letter-updated" aria-hidden="true">{formatRelativeTime(letter.updated_at)}</span>
 
       <style>{`
         .recent-letter-card {
@@ -241,7 +278,7 @@ function RecentLetterCard({ letter, onClick }: { letter: DemandLetterListItem; o
           color: var(--text-tertiary, #9ca3af);
         }
       `}</style>
-    </div>
+    </article>
   );
 }
 

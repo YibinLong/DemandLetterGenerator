@@ -2,9 +2,16 @@ interface LoadingSpinnerProps {
   size?: 'small' | 'medium' | 'large';
   text?: string;
   fullPage?: boolean;
+  /** Custom aria-label for screen readers (defaults to text or "Loading") */
+  'aria-label'?: string;
 }
 
-export function LoadingSpinner({ size = 'medium', text, fullPage = false }: LoadingSpinnerProps) {
+export function LoadingSpinner({
+  size = 'medium',
+  text,
+  fullPage = false,
+  'aria-label': ariaLabel,
+}: LoadingSpinnerProps) {
   const sizeMap = {
     small: 16,
     medium: 24,
@@ -12,9 +19,15 @@ export function LoadingSpinner({ size = 'medium', text, fullPage = false }: Load
   };
 
   const spinnerSize = sizeMap[size];
+  const loadingLabel = ariaLabel || text || 'Loading';
 
   return (
-    <div className={`loading-spinner ${fullPage ? 'full-page' : ''}`}>
+    <div
+      className={`loading-spinner ${fullPage ? 'full-page' : ''}`}
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
       <div
         className="spinner"
         style={{
@@ -22,8 +35,13 @@ export function LoadingSpinner({ size = 'medium', text, fullPage = false }: Load
           height: spinnerSize,
           borderWidth: size === 'small' ? 2 : 3,
         }}
+        aria-hidden="true"
       />
-      {text && <span className="loading-text">{text}</span>}
+      {text ? (
+        <span className="loading-text">{text}</span>
+      ) : (
+        <span className="visually-hidden">{loadingLabel}</span>
+      )}
 
       <style>{`
         .loading-spinner {
