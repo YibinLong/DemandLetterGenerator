@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { ThemeToggle } from './ThemeToggle';
+import { useEscapeKey, useFocusTrap } from '../../lib/accessibility';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -10,6 +11,20 @@ export function Header({ onMenuClick }: HeaderProps) {
   const { user, logout, isAuthenticated } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Close menu handler
+  const closeMenu = useCallback(() => {
+    setShowUserMenu(false);
+    // Return focus to the menu button when closing
+    menuButtonRef.current?.focus();
+  }, []);
+
+  // Close menu with Escape key
+  useEscapeKey(closeMenu, showUserMenu);
+
+  // Focus trap for dropdown menu
+  const dropdownRef = useFocusTrap<HTMLDivElement>(showUserMenu);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -27,15 +42,30 @@ export function Header({ onMenuClick }: HeaderProps) {
     await logout();
   };
 
+  // Handle keyboard navigation for menu button
+  const handleMenuButtonKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setShowUserMenu(true);
+    }
+  };
+
   const userInitials = user
     ? `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() || user.email[0].toUpperCase()
     : '';
 
+  const userName = user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email : '';
+
   return (
-    <header className="app-header">
+    <header className="app-header" role="banner">
       <div className="header-left">
-        <button className="menu-btn" onClick={onMenuClick} aria-label="Open menu">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <button
+          className="menu-btn"
+          onClick={onMenuClick}
+          aria-label="Open navigation menu"
+          type="button"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
             <line x1="3" y1="12" x2="21" y2="12" />
             <line x1="3" y1="6" x2="21" y2="6" />
             <line x1="3" y1="18" x2="21" y2="18" />
@@ -49,12 +79,18 @@ export function Header({ onMenuClick }: HeaderProps) {
         {isAuthenticated && user && (
           <div className="user-menu-container" ref={menuRef}>
             <button
+              ref={menuButtonRef}
               className="user-btn"
               onClick={() => setShowUserMenu(!showUserMenu)}
+              onKeyDown={handleMenuButtonKeyDown}
               aria-expanded={showUserMenu}
-              aria-haspopup="true"
+              aria-haspopup="menu"
+              aria-controls="user-menu"
+              aria-label={`User menu for ${userName}`}
+              id="user-menu-button"
+              type="button"
             >
-              <div className="user-avatar">{userInitials}</div>
+              <div className="user-avatar" aria-hidden="true">{userInitials}</div>
               <div className="user-info">
                 <span className="user-name">{user.first_name} {user.last_name}</span>
                 <span className="user-role">{user.role}</span>
@@ -67,19 +103,31 @@ export function Header({ onMenuClick }: HeaderProps) {
                 stroke="currentColor"
                 strokeWidth="2"
                 className={`chevron ${showUserMenu ? 'open' : ''}`}
+                aria-hidden="true"
               >
                 <polyline points="6 9 12 15 18 9" />
               </svg>
             </button>
 
             {showUserMenu && (
-              <div className="user-menu">
-                <div className="menu-header">
+              <div
+                ref={dropdownRef}
+                className="user-menu"
+                id="user-menu"
+                role="menu"
+                aria-labelledby="user-menu-button"
+              >
+                <div className="menu-header" role="presentation">
                   <span className="menu-email">{user.email}</span>
                 </div>
-                <div className="menu-divider" />
-                <button className="menu-item" onClick={handleLogout}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <div className="menu-divider" role="separator" aria-hidden="true" />
+                <button
+                  className="menu-item"
+                  onClick={handleLogout}
+                  role="menuitem"
+                  type="button"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                     <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
                     <polyline points="16 17 21 12 16 7" />
                     <line x1="21" y1="12" x2="9" y2="12" />

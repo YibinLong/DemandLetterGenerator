@@ -1,4 +1,6 @@
+import { useRef, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { useFocusTrap } from '../../lib/accessibility';
 
 interface NavItem {
   path: string;
@@ -21,52 +23,114 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const location = useLocation();
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Use focus trap when sidebar is open on mobile
+  const sidebarRef = useFocusTrap<HTMLElement>(isOpen);
+
+  // Focus the close button when sidebar opens on mobile
+  useEffect(() => {
+    if (isOpen && closeButtonRef.current) {
+      closeButtonRef.current.focus();
+    }
+  }, [isOpen]);
+
+  // Handle overlay click and keyboard
+  const handleOverlayInteraction = (e: React.MouseEvent | React.KeyboardEvent) => {
+    if (e.type === 'click' || (e.type === 'keydown' && (e as React.KeyboardEvent).key === 'Enter')) {
+      onClose();
+    }
+  };
 
   return (
     <>
-      {/* Mobile overlay */}
+      {/* Mobile overlay - clickable and keyboard accessible */}
       {isOpen && (
-        <div className="sidebar-overlay" onClick={onClose} />
+        <div
+          className="sidebar-overlay"
+          onClick={handleOverlayInteraction}
+          onKeyDown={handleOverlayInteraction}
+          role="button"
+          tabIndex={0}
+          aria-label="Close navigation menu"
+        />
       )}
 
-      <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
+      <aside
+        ref={sidebarRef}
+        className={`sidebar ${isOpen ? 'open' : ''}`}
+        role="navigation"
+        aria-label="Main navigation"
+        aria-hidden={!isOpen && typeof window !== 'undefined' && window.innerWidth < 1024 ? true : undefined}
+      >
         <div className="sidebar-header">
-          <div className="logo">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+          <div className="logo" aria-hidden="true">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
               <rect width="32" height="32" rx="8" fill="var(--color-primary, #3b82f6)" />
               <path d="M8 10h16M8 16h12M8 22h14" stroke="white" strokeWidth="2" strokeLinecap="round" />
             </svg>
             <span className="logo-text">DemandLetter<span className="logo-highlight">Gen</span></span>
           </div>
-          <button className="close-btn" onClick={onClose} aria-label="Close menu">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <button
+            ref={closeButtonRef}
+            className="close-btn"
+            onClick={onClose}
+            aria-label="Close navigation menu"
+            type="button"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
         </div>
 
-        <nav className="sidebar-nav">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              onClick={onClose}
-              className={({ isActive }) =>
-                `nav-item ${isActive || (item.path !== '/' && location.pathname.startsWith(item.path)) ? 'active' : ''}`
-              }
-              end={item.path === '/'}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d={item.icon} />
-              </svg>
-              <span>{item.label}</span>
-            </NavLink>
-          ))}
+        <nav className="sidebar-nav" aria-label="Main menu">
+          <ul role="list" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+            {navItems.map((item) => (
+              <li key={item.path}>
+                <NavLink
+                  to={item.path}
+                  onClick={onClose}
+                  className={({ isActive }) =>
+                    `nav-item ${isActive || (item.path !== '/' && location.pathname.startsWith(item.path)) ? 'active' : ''}`
+                  }
+                  end={item.path === '/'}
+                  aria-current={
+                    location.pathname === item.path ||
+                    (item.path !== '/' && location.pathname.startsWith(item.path))
+                      ? 'page'
+                      : undefined
+                  }
+                >
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d={item.icon} />
+                  </svg>
+                  <span>{item.label}</span>
+                </NavLink>
+              </li>
+            ))}
+          </ul>
         </nav>
 
         <div className="sidebar-footer">
-          <a href="https://steno.com" target="_blank" rel="noopener noreferrer" className="powered-by">
+          <a
+            href="https://steno.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="powered-by"
+            aria-label="Powered by Steno - opens in new tab"
+          >
             Powered by <strong>Steno</strong>
           </a>
         </div>

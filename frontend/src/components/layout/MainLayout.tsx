@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { ErrorBoundary } from '../common/ErrorBoundary';
+import { SkipLink } from '../common/SkipLink';
+import { useEscapeKey } from '../../lib/accessibility';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -11,12 +13,39 @@ interface MainLayoutProps {
 export function MainLayout({ children }: MainLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
+  const openSidebar = useCallback(() => setSidebarOpen(true), []);
+
+  // Close sidebar with Escape key (mobile)
+  useEscapeKey(closeSidebar, sidebarOpen);
+
+  // Prevent body scroll when mobile sidebar is open
+  useEffect(() => {
+    if (sidebarOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [sidebarOpen]);
+
   return (
     <div className="main-layout">
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <Header onMenuClick={() => setSidebarOpen(true)} />
+      {/* Skip link for keyboard navigation - WCAG 2.4.1 */}
+      <SkipLink targetId="main-content" />
 
-      <main className="main-content">
+      <Sidebar isOpen={sidebarOpen} onClose={closeSidebar} />
+      <Header onMenuClick={openSidebar} />
+
+      <main
+        id="main-content"
+        className="main-content"
+        role="main"
+        tabIndex={-1}
+        aria-label="Main content"
+      >
         <ErrorBoundary>
           {children}
         </ErrorBoundary>
