@@ -8,6 +8,9 @@ import { DemandLetter, DemandLetterVersion, Document, DemandLetterDocument, AIGe
 import { authenticate, AuthRequest, requireDocumentEditor } from '../middleware/auth.js';
 import { logAuditEvent } from '../services/audit.js';
 import { decryptBuffer } from '../services/encryption.js';
+import { cache, cacheKeys, cacheTTL } from '../services/cache.js';
+import { cacheMiddleware, invalidateCache } from '../middleware/caching.js';
+import { timeQuery } from '../services/performance.js';
 
 const router = Router();
 
@@ -284,6 +287,9 @@ router.post(
         ip_address: req.ip || req.socket.remoteAddress,
       });
 
+      // Invalidate cache for demand letter lists
+      invalidateCache([/^GET:.*:demand-letters/]);
+
       // Return created demand letter
       res.status(201).json({
         id: demandLetterId,
@@ -416,79 +422,84 @@ router.post(
 );
 
 // List demand letters for the user's firm
-router.get('/', authenticate, async (req: AuthRequest, res: Response) => {
-  try {
-    const db = getDatabase();
-    const {
-      status,
-      case_reference,
-      search,
-      limit = '50',
-      offset = '0',
-    } = req.query;
+router.get(
+  '/',
+  authenticate,
+  cacheMiddleware({ ttlSeconds: cacheTTL.list }),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const db = getDatabase();
+      const {
+        status,
+        case_reference,
+        search,
+        limit = '50',
+        offset = '0',
+      } = req.query;
 
-    const conditions: string[] = ['firm_id = ?'];
-    const params: (string | number)[] = [req.user!.firm_id];
+      const conditions: string[] = ['dl.firm_id = ?'];
+      const params: (string | number)[] = [req.user!.firm_id];
 
-    if (status) {
-      conditions.push('status = ?');
-      params.push(String(status));
+      if (status) {
+        conditions.push('dl.status = ?');
+        params.push(String(status));
+      }
+
+      if (case_reference) {
+        conditions.push('dl.case_reference = ?');
+        params.push(String(case_reference));
+      }
+
+      if (search) {
+        conditions.push('(dl.title LIKE ? OR dl.client_name LIKE ? OR dl.case_reference LIKE ?)');
+        const searchTerm = `%${String(search)}%`;
+        params.push(searchTerm, searchTerm, searchTerm);
+      }
+
+      const whereClause = conditions.join(' AND ');
+      params.push(Number(limit), Number(offset));
+
+      // Optimized query: JOIN with subquery to get version counts in a single query
+      // This fixes the N+1 problem by fetching demand letters and version counts together
+      const demandLettersWithVersions = timeQuery('listDemandLetters', () =>
+        db.prepare(`
+          SELECT
+            dl.id, dl.user_id, dl.firm_id, dl.template_id, dl.title, dl.status,
+            dl.case_reference, dl.client_name, dl.recipient_name, dl.incident_date,
+            dl.demand_amount, dl.created_at, dl.updated_at,
+            COALESCE(vc.version_count, 0) as version_count
+          FROM demand_letters dl
+          LEFT JOIN (
+            SELECT demand_letter_id, COUNT(*) as version_count
+            FROM demand_letter_versions
+            GROUP BY demand_letter_id
+          ) vc ON dl.id = vc.demand_letter_id
+          WHERE ${whereClause}
+          ORDER BY dl.updated_at DESC
+          LIMIT ? OFFSET ?
+        `).all(...params)
+      ) as (Omit<DemandLetter, 'content' | 'recipient_address' | 'metadata' | 'content_html'> & { version_count: number })[];
+
+      // Get total count
+      const countParams = params.slice(0, -2);
+      const countResult = timeQuery('countDemandLetters', () =>
+        db.prepare(`
+          SELECT COUNT(*) as count FROM demand_letters dl WHERE ${whereClause}
+        `).get(...countParams)
+      ) as { count: number };
+
+      res.json({
+        demand_letters: demandLettersWithVersions,
+        total: countResult.count,
+        limit: Number(limit),
+        offset: Number(offset),
+      });
+    } catch (err) {
+      console.error('List demand letters error:', err);
+      res.status(500).json({ error: 'Failed to list demand letters' });
     }
-
-    if (case_reference) {
-      conditions.push('case_reference = ?');
-      params.push(String(case_reference));
-    }
-
-    if (search) {
-      conditions.push('(title LIKE ? OR client_name LIKE ? OR case_reference LIKE ?)');
-      const searchTerm = `%${String(search)}%`;
-      params.push(searchTerm, searchTerm, searchTerm);
-    }
-
-    const whereClause = conditions.join(' AND ');
-    params.push(Number(limit), Number(offset));
-
-    const demandLetters = db.prepare(`
-      SELECT
-        id, user_id, firm_id, template_id, title, status,
-        case_reference, client_name, recipient_name, incident_date,
-        demand_amount, created_at, updated_at
-      FROM demand_letters
-      WHERE ${whereClause}
-      ORDER BY updated_at DESC
-      LIMIT ? OFFSET ?
-    `).all(...params) as Omit<DemandLetter, 'content' | 'recipient_address' | 'metadata'>[];
-
-    // Get total count
-    const countParams = params.slice(0, -2);
-    const countResult = db.prepare(`
-      SELECT COUNT(*) as count FROM demand_letters WHERE ${whereClause}
-    `).get(...countParams) as { count: number };
-
-    // Get version counts for each demand letter
-    const demandLettersWithVersions = demandLetters.map(dl => {
-      const versionCount = db.prepare(`
-        SELECT COUNT(*) as count FROM demand_letter_versions WHERE demand_letter_id = ?
-      `).get(dl.id) as { count: number };
-
-      return {
-        ...dl,
-        version_count: versionCount.count,
-      };
-    });
-
-    res.json({
-      demand_letters: demandLettersWithVersions,
-      total: countResult.count,
-      limit: Number(limit),
-      offset: Number(offset),
-    });
-  } catch (err) {
-    console.error('List demand letters error:', err);
-    res.status(500).json({ error: 'Failed to list demand letters' });
   }
-});
+);
 
 // Get single demand letter with full content
 router.get('/:id', authenticate, async (req: AuthRequest, res: Response) => {
@@ -671,6 +682,9 @@ router.patch(
         },
         ip_address: req.ip || req.socket.remoteAddress,
       });
+
+      // Invalidate cache for demand letter lists and this specific letter
+      invalidateCache([/^GET:.*:demand-letters/, new RegExp(`demand-letter:${id}`)]);
 
       // Return updated demand letter
       const updated = db.prepare(`
@@ -1116,6 +1130,9 @@ router.delete(
         },
         ip_address: req.ip || req.socket.remoteAddress,
       });
+
+      // Invalidate cache for demand letter lists
+      invalidateCache([/^GET:.*:demand-letters/]);
 
       res.json({ message: 'Demand letter deleted successfully' });
     } catch (err) {
