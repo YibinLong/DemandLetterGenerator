@@ -7,6 +7,7 @@ import {
   getStatusColor,
   formatRelativeTime,
 } from '../lib/demand-letters';
+import { queryKeys, staleTime, gcTime } from '../lib/queryClient';
 import type { DemandLetterListItem, DemandLetterListResponse } from '../types/demand-letter';
 
 interface DemandLetterListProps {
@@ -35,27 +36,36 @@ export function DemandLetterList({ onSelect, onCreateNew }: DemandLetterListProp
     setPage(0);
   }, [debouncedSearch, statusFilter]);
 
-  // Fetch demand letters
+  // Build query filters
+  const filters = {
+    search: debouncedSearch,
+    status: statusFilter,
+    limit: pageSize,
+    offset: page * pageSize,
+  };
+
+  // Fetch demand letters with optimized caching
   const { data, isLoading, error } = useQuery<DemandLetterListResponse>({
-    queryKey: ['demandLetters', {
-      search: debouncedSearch,
-      status: statusFilter,
-      limit: pageSize,
-      offset: page * pageSize,
-    }],
+    queryKey: queryKeys.demandLetters.list(filters),
     queryFn: () => listDemandLetters({
       search: debouncedSearch || undefined,
       status: statusFilter || undefined,
       limit: pageSize,
       offset: page * pageSize,
     }),
+    // Optimized cache settings
+    staleTime: staleTime.list,
+    gcTime: gcTime.list,
+    // Keep previous data while fetching new page
+    placeholderData: (previousData) => previousData,
   });
 
-  // Delete mutation
+  // Delete mutation with optimistic updates
   const deleteMutation = useMutation({
     mutationFn: deleteDemandLetter,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['demandLetters'] });
+      // Invalidate all demand letter queries
+      queryClient.invalidateQueries({ queryKey: queryKeys.demandLetters.all });
     },
   });
 
