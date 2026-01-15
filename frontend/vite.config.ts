@@ -36,9 +36,9 @@ export default defineConfig(({ mode }) => {
             // Vendor chunks - separate large dependencies for better caching
             'vendor-react': ['react', 'react-dom', 'react-router-dom'],
             'vendor-query': ['@tanstack/react-query'],
-            'vendor-editor': ['@tiptap/react', '@tiptap/starter-kit', '@tiptap/extension-collaboration', '@tiptap/extension-collaboration-cursor', 'yjs', 'y-websocket'],
+            'vendor-editor': ['@tiptap/react', '@tiptap/starter-kit', '@tiptap/extension-collaboration', '@tiptap/extension-collaboration-cursor', 'yjs'],
             'vendor-socket': ['socket.io-client'],
-            'vendor-utils': ['axios', 'uuid'],
+            'vendor-utils': ['axios'],
           },
           // Use content hash for cache busting
           chunkFileNames: 'assets/[name]-[hash].js',

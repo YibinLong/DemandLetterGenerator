@@ -1,5 +1,5 @@
 // React Query client configuration with optimized caching settings
-import { QueryClient, QueryClientConfig } from '@tanstack/react-query';
+import { QueryClient, type QueryClientConfig } from '@tanstack/react-query';
 
 // Default stale times for different types of queries
 export const staleTime = {
