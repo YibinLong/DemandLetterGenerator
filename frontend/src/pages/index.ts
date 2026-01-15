@@ -6,3 +6,4 @@ export { TemplatesPage } from './TemplatesPage';
 export { PromptsPage } from './PromptsPage';
 export { LoginPage } from './LoginPage';
 export { NotFoundPage } from './NotFoundPage';
+export { HelpPage } from './HelpPage';

@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { LiveRegionProvider, useLiveRegion, StatusAnnouncer } from './LiveRegion';
 
 // Test component that uses the useLiveRegion hook

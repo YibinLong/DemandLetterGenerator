@@ -5,6 +5,9 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { MainLayout } from './components/layout/MainLayout';
 import { LoadingSpinner } from './components/common/LoadingSpinner';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { LiveRegionProvider } from './components/common/LiveRegion';
+import { TourProvider } from './components/common/OnboardingTour';
+import { HelpProvider, HelpButton } from './components/common/HelpPanel';
 import {
   Dashboard,
   DemandLettersPage,
@@ -14,6 +17,7 @@ import {
   PromptsPage,
   LoginPage,
   NotFoundPage,
+  HelpPage,
 } from './pages';
 import './index.css';
 
@@ -145,6 +149,18 @@ function AppRoutes() {
         }
       />
 
+      {/* Help page */}
+      <Route
+        path="/help"
+        element={
+          <ProtectedRoute>
+            <MainLayout>
+              <HelpPage />
+            </MainLayout>
+          </ProtectedRoute>
+        }
+      />
+
       {/* 404 page */}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
@@ -156,11 +172,18 @@ function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <BrowserRouter>
-            <AuthProvider>
-              <AppRoutes />
-            </AuthProvider>
-          </BrowserRouter>
+          <LiveRegionProvider>
+            <TourProvider>
+              <HelpProvider>
+                <BrowserRouter>
+                  <AuthProvider>
+                    <AppRoutes />
+                    <HelpButton />
+                  </AuthProvider>
+                </BrowserRouter>
+              </HelpProvider>
+            </TourProvider>
+          </LiveRegionProvider>
         </ThemeProvider>
       </QueryClientProvider>
     </ErrorBoundary>
