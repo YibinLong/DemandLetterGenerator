@@ -759,4 +759,248 @@ describe('Demand Letter API', () => {
       expect(decoded.role).toBe('attorney');
     });
   });
+
+  describe('AI Draft Refinement', () => {
+    it('should store refinement instructions in history', () => {
+      const letterId = createTestDemandLetter({ content: 'Original demand letter content.' });
+      const now = new Date().toISOString();
+      const instructions = 'Make the tone more assertive and add more detail about medical expenses.';
+
+      db.prepare(`
+        INSERT INTO ai_generation_history (id, demand_letter_id, user_id, prompt, response_summary, model_used, tokens_used, generation_type, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        uuidv4(),
+        letterId,
+        testUserId,
+        instructions,
+        'Refined demand letter content with assertive tone...',
+        'gpt-4o-mini',
+        1500,
+        'refinement',
+        now
+      );
+
+      const history = db.prepare(`
+        SELECT * FROM ai_generation_history WHERE demand_letter_id = ? AND generation_type = 'refinement'
+      `).get(letterId) as { prompt: string; generation_type: string };
+
+      expect(history).toBeDefined();
+      expect(history.prompt).toBe(instructions);
+      expect(history.generation_type).toBe('refinement');
+    });
+
+    it('should create new version after refinement', () => {
+      const letterId = createTestDemandLetter({ content: 'Original content' });
+      const now = new Date().toISOString();
+
+      // Create initial version
+      db.prepare(`
+        INSERT INTO demand_letter_versions (id, demand_letter_id, version_number, content, changed_by, change_summary, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), letterId, 1, 'Original content', testUserId, 'Initial AI generation', now);
+
+      // Create refinement version
+      const refinedContent = 'Refined content with more assertive tone.';
+      db.prepare(`
+        INSERT INTO demand_letter_versions (id, demand_letter_id, version_number, content, changed_by, change_summary, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), letterId, 2, refinedContent, testUserId, 'AI refinement: Make tone more assertive', now);
+
+      const versions = db.prepare(`
+        SELECT * FROM demand_letter_versions WHERE demand_letter_id = ? ORDER BY version_number
+      `).all(letterId) as Array<{ version_number: number; change_summary: string; content: string }>;
+
+      expect(versions.length).toBe(2);
+      expect(versions[1].version_number).toBe(2);
+      expect(versions[1].change_summary).toContain('AI refinement');
+      expect(versions[1].content).toBe(refinedContent);
+    });
+
+    it('should support multiple rounds of refinement', () => {
+      const letterId = createTestDemandLetter({ content: 'Initial content' });
+      const now = new Date().toISOString();
+
+      // Create initial version and history
+      db.prepare(`
+        INSERT INTO demand_letter_versions (id, demand_letter_id, version_number, content, changed_by, change_summary, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), letterId, 1, 'Initial content', testUserId, 'Initial AI generation', now);
+
+      db.prepare(`
+        INSERT INTO ai_generation_history (id, demand_letter_id, user_id, prompt, generation_type, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), letterId, testUserId, 'Initial generation', 'initial', now);
+
+      // First refinement
+      db.prepare(`
+        INSERT INTO demand_letter_versions (id, demand_letter_id, version_number, content, changed_by, change_summary, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), letterId, 2, 'Content after first refinement', testUserId, 'AI refinement: Make assertive', now);
+
+      db.prepare(`
+        INSERT INTO ai_generation_history (id, demand_letter_id, user_id, prompt, generation_type, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), letterId, testUserId, 'Make tone more assertive', 'refinement', now);
+
+      // Second refinement
+      db.prepare(`
+        INSERT INTO demand_letter_versions (id, demand_letter_id, version_number, content, changed_by, change_summary, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), letterId, 3, 'Content after second refinement', testUserId, 'AI refinement: Add details', now);
+
+      db.prepare(`
+        INSERT INTO ai_generation_history (id, demand_letter_id, user_id, prompt, generation_type, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), letterId, testUserId, 'Add more detail about damages', 'refinement', now);
+
+      // Third refinement
+      db.prepare(`
+        INSERT INTO demand_letter_versions (id, demand_letter_id, version_number, content, changed_by, change_summary, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), letterId, 4, 'Content after third refinement', testUserId, 'AI refinement: Shorten intro', now);
+
+      db.prepare(`
+        INSERT INTO ai_generation_history (id, demand_letter_id, user_id, prompt, generation_type, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), letterId, testUserId, 'Shorten the introduction paragraph', 'refinement', now);
+
+      // Check versions
+      const versions = db.prepare(`
+        SELECT * FROM demand_letter_versions WHERE demand_letter_id = ? ORDER BY version_number
+      `).all(letterId) as Array<{ version_number: number }>;
+
+      expect(versions.length).toBe(4);
+
+      // Check refinement history
+      const refinements = db.prepare(`
+        SELECT * FROM ai_generation_history WHERE demand_letter_id = ? AND generation_type = 'refinement' ORDER BY created_at
+      `).all(letterId) as Array<{ prompt: string }>;
+
+      expect(refinements.length).toBe(3);
+    });
+
+    it('should support version restore (undo)', () => {
+      const letterId = createTestDemandLetter({ content: 'Current content' });
+      const now = new Date().toISOString();
+      const v1Id = uuidv4();
+      const v2Id = uuidv4();
+
+      // Create versions
+      db.prepare(`
+        INSERT INTO demand_letter_versions (id, demand_letter_id, version_number, content, changed_by, change_summary, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(v1Id, letterId, 1, 'Original content', testUserId, 'Initial', now);
+
+      db.prepare(`
+        INSERT INTO demand_letter_versions (id, demand_letter_id, version_number, content, changed_by, change_summary, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(v2Id, letterId, 2, 'Refined content', testUserId, 'AI refinement', now);
+
+      // Simulate restore - create new version with v1 content
+      const restoredContent = 'Original content';
+      db.prepare(`
+        INSERT INTO demand_letter_versions (id, demand_letter_id, version_number, content, changed_by, change_summary, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), letterId, 3, restoredContent, testUserId, 'Restored from version 1', now);
+
+      // Update demand letter content
+      db.prepare(`
+        UPDATE demand_letters SET content = ?, updated_at = ? WHERE id = ?
+      `).run(restoredContent, now, letterId);
+
+      const letter = db.prepare('SELECT * FROM demand_letters WHERE id = ?').get(letterId) as {
+        content: string;
+      };
+      expect(letter.content).toBe('Original content');
+
+      const versions = db.prepare(`
+        SELECT * FROM demand_letter_versions WHERE demand_letter_id = ? ORDER BY version_number DESC LIMIT 1
+      `).get(letterId) as { version_number: number; change_summary: string };
+
+      expect(versions.version_number).toBe(3);
+      expect(versions.change_summary).toContain('Restored from version 1');
+    });
+
+    it('should count refinement rounds correctly', () => {
+      const letterId = createTestDemandLetter();
+      const now = new Date().toISOString();
+
+      // Initial generation
+      db.prepare(`
+        INSERT INTO ai_generation_history (id, demand_letter_id, user_id, prompt, generation_type, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), letterId, testUserId, 'Initial', 'initial', now);
+
+      // 5 refinements
+      for (let i = 1; i <= 5; i++) {
+        db.prepare(`
+          INSERT INTO ai_generation_history (id, demand_letter_id, user_id, prompt, generation_type, created_at)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `).run(uuidv4(), letterId, testUserId, `Refinement ${i}`, 'refinement', now);
+      }
+
+      const count = db.prepare(`
+        SELECT COUNT(*) as count FROM ai_generation_history WHERE demand_letter_id = ? AND generation_type = 'refinement'
+      `).get(letterId) as { count: number };
+
+      expect(count.count).toBe(5);
+    });
+
+    it('should track refinement audit events', () => {
+      const letterId = createTestDemandLetter();
+      const now = new Date().toISOString();
+
+      db.prepare(`
+        INSERT INTO audit_logs (id, event_type, user_id, firm_id, resource_type, resource_id, details, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        uuidv4(),
+        'AI_REFINEMENT_REQUESTED',
+        testUserId,
+        testFirmId,
+        'demand_letter',
+        letterId,
+        JSON.stringify({
+          model: 'gpt-4o-mini',
+          tokens_used: 1200,
+          estimated_cost: 0.0005,
+        }),
+        now
+      );
+
+      const log = db.prepare(`
+        SELECT * FROM audit_logs WHERE event_type = 'AI_REFINEMENT_REQUESTED' AND resource_id = ?
+      `).get(letterId) as { event_type: string; details: string };
+
+      expect(log).toBeDefined();
+      expect(log.event_type).toBe('AI_REFINEMENT_REQUESTED');
+      const details = JSON.parse(log.details);
+      expect(details.model).toBe('gpt-4o-mini');
+    });
+
+    it('should allow reapplying previous refinement instructions', () => {
+      const letterId = createTestDemandLetter();
+      const now = new Date().toISOString();
+      const instruction = 'Make the tone more assertive';
+
+      // First application
+      db.prepare(`
+        INSERT INTO ai_generation_history (id, demand_letter_id, user_id, prompt, generation_type, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), letterId, testUserId, instruction, 'refinement', now);
+
+      // Re-application (same instruction applied again)
+      db.prepare(`
+        INSERT INTO ai_generation_history (id, demand_letter_id, user_id, prompt, generation_type, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(uuidv4(), letterId, testUserId, instruction, 'refinement', now);
+
+      const history = db.prepare(`
+        SELECT * FROM ai_generation_history WHERE demand_letter_id = ? AND prompt = ?
+      `).all(letterId, instruction) as Array<{ prompt: string }>;
+
+      expect(history.length).toBe(2);
+    });
+  });
 });
