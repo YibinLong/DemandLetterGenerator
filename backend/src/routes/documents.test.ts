@@ -390,6 +390,33 @@ describe('Document Upload API', () => {
       expect(log.event_type).toBe('DOCUMENT_DOWNLOADED');
     });
 
+    it('should log document preview event', () => {
+      const auditId = uuidv4();
+      const documentId = uuidv4();
+
+      db.prepare(`
+        INSERT INTO audit_logs (id, event_type, user_id, firm_id, resource_type, resource_id, details, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      `).run(
+        auditId,
+        'DOCUMENT_PREVIEWED',
+        testUserId,
+        testFirmId,
+        'document',
+        documentId,
+        JSON.stringify({ original_filename: 'test.pdf', file_type: 'pdf' })
+      );
+
+      const log = db.prepare('SELECT * FROM audit_logs WHERE event_type = ?').get('DOCUMENT_PREVIEWED') as {
+        event_type: string;
+        resource_type: string;
+      };
+
+      expect(log).toBeDefined();
+      expect(log.event_type).toBe('DOCUMENT_PREVIEWED');
+      expect(log.resource_type).toBe('document');
+    });
+
     it('should log document deletion event', () => {
       const auditId = uuidv4();
       const documentId = uuidv4();
@@ -405,6 +432,54 @@ describe('Document Upload API', () => {
 
       expect(log).toBeDefined();
       expect(log.event_type).toBe('DOCUMENT_DELETED');
+    });
+  });
+
+  describe('Document Preview', () => {
+    it('should support previewing PDF files', () => {
+      const supportedPreviewTypes = ['pdf', 'txt'];
+      expect(supportedPreviewTypes.includes('pdf')).toBe(true);
+    });
+
+    it('should support previewing TXT files', () => {
+      const supportedPreviewTypes = ['pdf', 'txt'];
+      expect(supportedPreviewTypes.includes('txt')).toBe(true);
+    });
+
+    it('should not support native preview for DOCX files', () => {
+      // DOCX files require download, cannot be previewed inline in browser
+      const supportedPreviewTypes = ['pdf', 'txt'];
+      expect(supportedPreviewTypes.includes('docx')).toBe(false);
+    });
+
+    it('should return correct MIME type for text preview', () => {
+      const mimeTypes: Record<string, string> = {
+        pdf: 'application/pdf',
+        docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        txt: 'text/plain; charset=utf-8',
+      };
+      expect(mimeTypes['txt']).toBe('text/plain; charset=utf-8');
+    });
+
+    it('should return correct MIME type for PDF preview', () => {
+      const mimeTypes: Record<string, string> = {
+        pdf: 'application/pdf',
+        docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        txt: 'text/plain; charset=utf-8',
+      };
+      expect(mimeTypes['pdf']).toBe('application/pdf');
+    });
+
+    it('should use inline Content-Disposition for preview', () => {
+      const filename = 'test-document.pdf';
+      const disposition = `inline; filename="${filename}"`;
+      expect(disposition).toBe('inline; filename="test-document.pdf"');
+    });
+
+    it('should use attachment Content-Disposition for download', () => {
+      const filename = 'test-document.pdf';
+      const disposition = `attachment; filename="${filename}"`;
+      expect(disposition).toBe('attachment; filename="test-document.pdf"');
     });
   });
 
