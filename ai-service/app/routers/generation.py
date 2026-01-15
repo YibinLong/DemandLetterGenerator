@@ -1,15 +1,18 @@
 """
 AI Generation Router
 
-API endpoints for demand letter generation, refinement, and document analysis.
+API endpoints for demand letter generation, refinement, document analysis, and export.
 """
 
 import base64
+import io
 import logging
+import re
+import zipfile
 from typing import AsyncGenerator
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, Response
 
 from ..models.generation import (
     GenerateRequest,
@@ -23,10 +26,15 @@ from ..models.generation import (
     TokenUsageResponse,
     SessionStatsResponse,
     ErrorResponse,
+    ExportRequest,
+    ExportOptionsModel,
+    BatchExportRequest,
+    BatchExportResponse,
 )
 from ..services.openai_client import get_openai_client, OpenAIClient
 from ..services.document_parser import get_document_parser, DocumentParser
 from ..services.prompts import get_prompt_builder, PromptBuilder
+from ..services.docx_exporter import get_docx_exporter, DocxExporter, ExportOptions
 
 logger = logging.getLogger(__name__)
 
@@ -455,3 +463,199 @@ async def list_prompt_templates():
     """
     prompt_builder = get_prompt_builder()
     return {"templates": prompt_builder.list_templates()}
+
+
+def _convert_export_options(options: ExportOptionsModel | None) -> ExportOptions:
+    """Convert API export options model to service export options."""
+    if options is None:
+        return ExportOptions()
+
+    return ExportOptions(
+        font_name=options.font_name or "Times New Roman",
+        font_size=options.font_size or 12,
+        margin_top=options.margin_top or 1.0,
+        margin_bottom=options.margin_bottom or 1.0,
+        margin_left=options.margin_left or 1.0,
+        margin_right=options.margin_right or 1.0,
+        line_spacing=options.line_spacing or 1.0,
+        include_letterhead=options.include_letterhead or False,
+        letterhead_firm_name=options.letterhead_firm_name,
+        letterhead_address=options.letterhead_address,
+        letterhead_phone=options.letterhead_phone,
+        letterhead_email=options.letterhead_email,
+        include_page_numbers=options.include_page_numbers if options.include_page_numbers is not None else True,
+        include_date=options.include_date if options.include_date is not None else True,
+    )
+
+
+def _sanitize_filename(title: str) -> str:
+    """Sanitize title for use as filename."""
+    # Remove or replace invalid filename characters
+    sanitized = re.sub(r'[<>:"/\\|?*]', '', title)
+    # Replace spaces with underscores
+    sanitized = sanitized.replace(' ', '_')
+    # Limit length
+    if len(sanitized) > 100:
+        sanitized = sanitized[:100]
+    return sanitized or "demand_letter"
+
+
+@router.post("/export")
+async def export_to_word(request: ExportRequest):
+    """
+    Export a demand letter to a Word document.
+
+    Returns the document as a downloadable .docx file.
+
+    **Parameters:**
+    - content: The demand letter text to export
+    - title: Document title (used for filename and metadata)
+    - options: Optional export configuration (fonts, margins, letterhead, etc.)
+    """
+    try:
+        exporter = get_docx_exporter()
+        export_options = _convert_export_options(request.options)
+
+        docx_bytes = exporter.export(
+            content=request.content,
+            title=request.title,
+            options=export_options,
+        )
+
+        filename = _sanitize_filename(request.title) + ".docx"
+
+        return Response(
+            content=docx_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Content-Length": str(len(docx_bytes)),
+            },
+        )
+
+    except Exception as e:
+        logger.error(f"Export failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to export document: {str(e)}",
+        )
+
+
+@router.post("/export/batch")
+async def batch_export_to_word(request: BatchExportRequest):
+    """
+    Export multiple demand letters to Word documents in a ZIP archive.
+
+    Returns a ZIP file containing all documents as .docx files.
+
+    **Parameters:**
+    - items: List of demand letters to export (id, content, title, optional filename)
+    - options: Optional export configuration applied to all documents
+    """
+    if not request.items:
+        raise HTTPException(status_code=400, detail="At least one item is required")
+
+    if len(request.items) > 50:
+        raise HTTPException(status_code=400, detail="Maximum 50 items per batch export")
+
+    try:
+        exporter = get_docx_exporter()
+        export_options = _convert_export_options(request.options)
+
+        # Create ZIP file in memory
+        zip_buffer = io.BytesIO()
+        errors: list[str] = []
+        file_count = 0
+
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            filenames_used: dict[str, int] = {}
+
+            for item in request.items:
+                try:
+                    docx_bytes = exporter.export(
+                        content=item.content,
+                        title=item.title,
+                        options=export_options,
+                    )
+
+                    # Determine filename
+                    base_filename = item.filename or _sanitize_filename(item.title)
+
+                    # Handle duplicate filenames
+                    if base_filename in filenames_used:
+                        filenames_used[base_filename] += 1
+                        filename = f"{base_filename}_{filenames_used[base_filename]}.docx"
+                    else:
+                        filenames_used[base_filename] = 0
+                        filename = f"{base_filename}.docx"
+
+                    zip_file.writestr(filename, docx_bytes)
+                    file_count += 1
+
+                except Exception as item_error:
+                    error_msg = f"Failed to export '{item.title}': {str(item_error)}"
+                    logger.error(error_msg)
+                    errors.append(error_msg)
+
+        if file_count == 0:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to export any documents",
+            )
+
+        zip_buffer.seek(0)
+        zip_bytes = zip_buffer.getvalue()
+
+        return Response(
+            content=zip_bytes,
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": 'attachment; filename="demand_letters.zip"',
+                "Content-Length": str(len(zip_bytes)),
+                "X-Export-File-Count": str(file_count),
+                "X-Export-Errors": str(len(errors)),
+            },
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Batch export failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to batch export documents: {str(e)}",
+        )
+
+
+@router.get("/export/options")
+async def get_export_options():
+    """
+    Get available export options and their defaults.
+    """
+    return {
+        "fonts": [
+            "Times New Roman",
+            "Arial",
+            "Calibri",
+            "Georgia",
+            "Garamond",
+            "Century",
+            "Palatino Linotype",
+            "Book Antiqua",
+        ],
+        "defaults": {
+            "font_name": "Times New Roman",
+            "font_size": 12,
+            "margin_top": 1.0,
+            "margin_bottom": 1.0,
+            "margin_left": 1.0,
+            "margin_right": 1.0,
+            "line_spacing": 1.0,
+            "include_letterhead": False,
+            "include_page_numbers": True,
+            "include_date": True,
+        },
+        "font_sizes": [10, 11, 12, 14],
+        "line_spacing_options": [1.0, 1.15, 1.5, 2.0],
+        "margin_range": {"min": 0.5, "max": 2.0},
+    }

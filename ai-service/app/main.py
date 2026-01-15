@@ -83,6 +83,9 @@ async def root():
             "models": "/ai/models",
             "templates": "/ai/templates",
             "stats": "/ai/stats",
+            "export": "/ai/export",
+            "export_batch": "/ai/export/batch",
+            "export_options": "/ai/export/options",
         },
     }
 

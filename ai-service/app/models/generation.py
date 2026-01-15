@@ -145,3 +145,50 @@ class ErrorResponse(BaseModel):
     error: str
     detail: Optional[str] = None
     code: Optional[str] = None
+
+
+class ExportOptionsModel(BaseModel):
+    """Export configuration options."""
+    font_name: Optional[str] = Field("Times New Roman", description="Font family to use")
+    font_size: Optional[int] = Field(12, ge=8, le=24, description="Font size in points")
+    margin_top: Optional[float] = Field(1.0, ge=0.5, le=2.0, description="Top margin in inches")
+    margin_bottom: Optional[float] = Field(1.0, ge=0.5, le=2.0, description="Bottom margin in inches")
+    margin_left: Optional[float] = Field(1.0, ge=0.5, le=2.0, description="Left margin in inches")
+    margin_right: Optional[float] = Field(1.0, ge=0.5, le=2.0, description="Right margin in inches")
+    line_spacing: Optional[float] = Field(1.0, ge=1.0, le=3.0, description="Line spacing multiplier")
+    include_letterhead: Optional[bool] = Field(False, description="Include firm letterhead")
+    letterhead_firm_name: Optional[str] = Field(None, description="Firm name for letterhead")
+    letterhead_address: Optional[str] = Field(None, description="Firm address for letterhead")
+    letterhead_phone: Optional[str] = Field(None, description="Firm phone for letterhead")
+    letterhead_email: Optional[str] = Field(None, description="Firm email for letterhead")
+    include_page_numbers: Optional[bool] = Field(True, description="Include page numbers")
+    include_date: Optional[bool] = Field(True, description="Include current date")
+
+
+class ExportRequest(BaseModel):
+    """Request to export a demand letter to Word document."""
+    content: str = Field(..., description="The demand letter content to export")
+    title: str = Field(..., description="Document title")
+    options: Optional[ExportOptionsModel] = Field(None, description="Export options")
+
+
+class BatchExportItem(BaseModel):
+    """Single item in a batch export request."""
+    id: str = Field(..., description="Demand letter ID")
+    content: str = Field(..., description="Demand letter content")
+    title: str = Field(..., description="Document title")
+    filename: Optional[str] = Field(None, description="Output filename (without extension)")
+
+
+class BatchExportRequest(BaseModel):
+    """Request to export multiple demand letters."""
+    items: list[BatchExportItem] = Field(..., description="Demand letters to export")
+    options: Optional[ExportOptionsModel] = Field(None, description="Export options (applied to all)")
+
+
+class BatchExportResponse(BaseModel):
+    """Response from batch export - returns a ZIP file."""
+    success: bool
+    file_count: int
+    total_size: int
+    errors: list[str] = Field(default_factory=list)
