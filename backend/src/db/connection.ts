@@ -140,6 +140,48 @@ function runMigrations(database: Database.Database, fromVersion: number): void {
         ALTER TABLE demand_letter_versions ADD COLUMN content_html TEXT;
       `);
     },
+    // Migration to add collaboration tables
+    4: () => {
+      database.exec(`
+        -- Collaboration sessions table - tracks active editing sessions
+        CREATE TABLE IF NOT EXISTS collaboration_sessions (
+          id TEXT PRIMARY KEY,
+          demand_letter_id TEXT NOT NULL,
+          created_by TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          expires_at TEXT NOT NULL,
+          is_active INTEGER NOT NULL DEFAULT 1,
+          FOREIGN KEY (demand_letter_id) REFERENCES demand_letters(id) ON DELETE CASCADE,
+          FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        -- Collaboration invites table - sharing access to edit sessions
+        CREATE TABLE IF NOT EXISTS collaboration_invites (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL,
+          demand_letter_id TEXT NOT NULL,
+          invited_by TEXT NOT NULL,
+          invited_user_id TEXT,
+          invited_email TEXT,
+          token TEXT NOT NULL UNIQUE,
+          permission TEXT NOT NULL DEFAULT 'edit' CHECK (permission IN ('view', 'edit')),
+          accepted INTEGER NOT NULL DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          expires_at TEXT NOT NULL,
+          FOREIGN KEY (session_id) REFERENCES collaboration_sessions(id) ON DELETE CASCADE,
+          FOREIGN KEY (demand_letter_id) REFERENCES demand_letters(id) ON DELETE CASCADE,
+          FOREIGN KEY (invited_by) REFERENCES users(id) ON DELETE CASCADE,
+          FOREIGN KEY (invited_user_id) REFERENCES users(id) ON DELETE SET NULL
+        );
+
+        -- Create indexes for collaboration tables
+        CREATE INDEX IF NOT EXISTS idx_collaboration_sessions_demand_letter_id ON collaboration_sessions(demand_letter_id);
+        CREATE INDEX IF NOT EXISTS idx_collaboration_sessions_is_active ON collaboration_sessions(is_active);
+        CREATE INDEX IF NOT EXISTS idx_collaboration_invites_token ON collaboration_invites(token);
+        CREATE INDEX IF NOT EXISTS idx_collaboration_invites_session_id ON collaboration_invites(session_id);
+        CREATE INDEX IF NOT EXISTS idx_collaboration_invites_invited_user_id ON collaboration_invites(invited_user_id);
+      `);
+    },
   };
 
   for (let version = fromVersion + 1; version <= SCHEMA_VERSION; version++) {

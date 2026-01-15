@@ -1,7 +1,7 @@
 // Database schema definitions for Demand Letter Generator
 // Using SQLite with better-sqlite3
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 // SQL statements for creating all tables
 export const CREATE_TABLES_SQL = `
@@ -171,6 +171,37 @@ CREATE TABLE IF NOT EXISTS rate_limits (
   UNIQUE(identifier, endpoint)
 );
 
+-- Collaboration sessions table - tracks active editing sessions
+CREATE TABLE IF NOT EXISTS collaboration_sessions (
+  id TEXT PRIMARY KEY,
+  demand_letter_id TEXT NOT NULL,
+  created_by TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  expires_at TEXT NOT NULL,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  FOREIGN KEY (demand_letter_id) REFERENCES demand_letters(id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Collaboration invites table - sharing access to edit sessions
+CREATE TABLE IF NOT EXISTS collaboration_invites (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  demand_letter_id TEXT NOT NULL,
+  invited_by TEXT NOT NULL,
+  invited_user_id TEXT, -- For internal users
+  invited_email TEXT, -- For external invites
+  token TEXT NOT NULL UNIQUE, -- Secure token for invite link
+  permission TEXT NOT NULL DEFAULT 'edit' CHECK (permission IN ('view', 'edit')),
+  accepted INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  expires_at TEXT NOT NULL,
+  FOREIGN KEY (session_id) REFERENCES collaboration_sessions(id) ON DELETE CASCADE,
+  FOREIGN KEY (demand_letter_id) REFERENCES demand_letters(id) ON DELETE CASCADE,
+  FOREIGN KEY (invited_by) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (invited_user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_users_firm_id ON users(firm_id);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -189,6 +220,11 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_firm_id ON audit_logs(firm_id);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_event_type ON audit_logs(event_type);
 CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_rate_limits_identifier ON rate_limits(identifier);
+CREATE INDEX IF NOT EXISTS idx_collaboration_sessions_demand_letter_id ON collaboration_sessions(demand_letter_id);
+CREATE INDEX IF NOT EXISTS idx_collaboration_sessions_is_active ON collaboration_sessions(is_active);
+CREATE INDEX IF NOT EXISTS idx_collaboration_invites_token ON collaboration_invites(token);
+CREATE INDEX IF NOT EXISTS idx_collaboration_invites_session_id ON collaboration_invites(session_id);
+CREATE INDEX IF NOT EXISTS idx_collaboration_invites_invited_user_id ON collaboration_invites(invited_user_id);
 `;
 
 // TypeScript interfaces matching the database schema
@@ -324,4 +360,27 @@ export interface RateLimit {
   request_count: number;
   window_start: string;
   created_at: string;
+}
+
+export interface CollaborationSession {
+  id: string;
+  demand_letter_id: string;
+  created_by: string;
+  created_at: string;
+  expires_at: string;
+  is_active: number;
+}
+
+export interface CollaborationInvite {
+  id: string;
+  session_id: string;
+  demand_letter_id: string;
+  invited_by: string;
+  invited_user_id?: string;
+  invited_email?: string;
+  token: string;
+  permission: 'view' | 'edit';
+  accepted: number;
+  created_at: string;
+  expires_at: string;
 }

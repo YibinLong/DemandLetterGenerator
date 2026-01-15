@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import path from 'path';
+import http from 'http';
 import https from 'https';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -11,7 +12,9 @@ import authRoutes from './routes/auth.js';
 import documentRoutes from './routes/documents.js';
 import demandLetterRoutes from './routes/demand-letters.js';
 import templateRoutes from './routes/templates.js';
+import collaborationRoutes from './routes/collaboration.js';
 import { generalRateLimit, startRateLimitCleanup } from './middleware/rateLimit.js';
+import { initializeCollaboration } from './services/collaboration.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -110,6 +113,10 @@ app.get('/api', (req: Request, res: Response) => {
       documents: '/api/documents',
       templates: '/api/templates',
       demandLetters: '/api/demand-letters',
+      collaboration: '/api/collaboration',
+    },
+    websocket: {
+      collaboration: '/collaboration',
     },
   });
 });
@@ -125,6 +132,9 @@ app.use('/api/demand-letters', demandLetterRoutes);
 
 // Mount template routes
 app.use('/api/templates', templateRoutes);
+
+// Mount collaboration routes
+app.use('/api/collaboration', collaborationRoutes);
 
 // Error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
@@ -151,6 +161,8 @@ const startServer = () => {
   const sslKeyPath = process.env.SSL_KEY_PATH;
   const sslCertPath = process.env.SSL_CERT_PATH;
 
+  let httpServer: http.Server | https.Server;
+
   if (sslKeyPath && sslCertPath && fs.existsSync(sslKeyPath) && fs.existsSync(sslCertPath)) {
     // Start HTTPS server
     const httpsOptions = {
@@ -158,23 +170,34 @@ const startServer = () => {
       cert: fs.readFileSync(sslCertPath),
     };
 
-    https.createServer(httpsOptions, app).listen(PORT, () => {
+    httpServer = https.createServer(httpsOptions, app);
+    httpServer.listen(PORT, () => {
       console.log(`Backend API server running on https://localhost:${PORT}`);
       console.log(`Health check: https://localhost:${PORT}/health`);
+      console.log(`WebSocket: wss://localhost:${PORT}/collaboration`);
     });
   } else {
     // Start HTTP server (for development or when behind a TLS-terminating proxy like Vercel)
-    app.listen(PORT, () => {
+    httpServer = http.createServer(app);
+    httpServer.listen(PORT, () => {
       console.log(`Backend API server running on http://localhost:${PORT}`);
       console.log(`Health check: http://localhost:${PORT}/health`);
+      console.log(`WebSocket: ws://localhost:${PORT}/collaboration`);
 
       if (process.env.NODE_ENV === 'production') {
         console.log('Note: Running HTTP in production. Ensure TLS is handled by reverse proxy.');
       }
     });
   }
+
+  // Initialize WebSocket collaboration server
+  const io = initializeCollaboration(httpServer);
+  console.log('[Collaboration] WebSocket server initialized');
+
+  return { httpServer, io };
 };
 
-startServer();
+const { httpServer, io } = startServer();
 
+export { app, httpServer, io };
 export default app;

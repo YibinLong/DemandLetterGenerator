@@ -21,6 +21,7 @@
   "license": "ISC",
   "description": "Backend API for Demand Letter Generator",
   "dependencies": {
+    "@types/socket.io-parser": "^2.2.1",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.6.0",
     "cors": "^2.8.5",
@@ -29,6 +30,7 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.0.2",
+    "socket.io": "^4.8.3",
     "uuid": "^13.0.0"
   },
   "devDependencies": {
