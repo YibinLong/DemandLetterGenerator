@@ -92,8 +92,44 @@ function runMigrations(database: Database.Database, fromVersion: number): void {
 
   // Migration functions keyed by target version
   const migrations: Record<number, () => void> = {
-    // Add future migrations here
-    // 2: () => { /* migration to version 2 */ },
+    // Migration to add audit_logs and rate_limits tables
+    2: () => {
+      database.exec(`
+        -- Audit logs table for compliance tracking
+        CREATE TABLE IF NOT EXISTS audit_logs (
+          id TEXT PRIMARY KEY,
+          event_type TEXT NOT NULL,
+          user_id TEXT,
+          firm_id TEXT,
+          resource_type TEXT,
+          resource_id TEXT,
+          details TEXT,
+          ip_address TEXT,
+          user_agent TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+          FOREIGN KEY (firm_id) REFERENCES firms(id) ON DELETE SET NULL
+        );
+
+        -- Rate limit tracking table
+        CREATE TABLE IF NOT EXISTS rate_limits (
+          id TEXT PRIMARY KEY,
+          identifier TEXT NOT NULL,
+          endpoint TEXT NOT NULL,
+          request_count INTEGER NOT NULL DEFAULT 1,
+          window_start TEXT NOT NULL DEFAULT (datetime('now')),
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          UNIQUE(identifier, endpoint)
+        );
+
+        -- Create indexes for audit_logs
+        CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
+        CREATE INDEX IF NOT EXISTS idx_audit_logs_firm_id ON audit_logs(firm_id);
+        CREATE INDEX IF NOT EXISTS idx_audit_logs_event_type ON audit_logs(event_type);
+        CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
+        CREATE INDEX IF NOT EXISTS idx_rate_limits_identifier ON rate_limits(identifier);
+      `);
+    },
   };
 
   for (let version = fromVersion + 1; version <= SCHEMA_VERSION; version++) {

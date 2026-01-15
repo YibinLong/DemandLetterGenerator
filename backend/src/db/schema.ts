@@ -1,7 +1,7 @@
 // Database schema definitions for Demand Letter Generator
 // Using SQLite with better-sqlite3
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 // SQL statements for creating all tables
 export const CREATE_TABLES_SQL = `
@@ -142,6 +142,33 @@ CREATE TABLE IF NOT EXISTS ai_generation_history (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- Audit logs table for compliance tracking
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id TEXT PRIMARY KEY,
+  event_type TEXT NOT NULL,
+  user_id TEXT,
+  firm_id TEXT,
+  resource_type TEXT,
+  resource_id TEXT,
+  details TEXT, -- JSON for additional event data
+  ip_address TEXT,
+  user_agent TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (firm_id) REFERENCES firms(id) ON DELETE SET NULL
+);
+
+-- Rate limit tracking table
+CREATE TABLE IF NOT EXISTS rate_limits (
+  id TEXT PRIMARY KEY,
+  identifier TEXT NOT NULL, -- IP address or user ID
+  endpoint TEXT NOT NULL,
+  request_count INTEGER NOT NULL DEFAULT 1,
+  window_start TEXT NOT NULL DEFAULT (datetime('now')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(identifier, endpoint)
+);
+
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_users_firm_id ON users(firm_id);
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -155,6 +182,11 @@ CREATE INDEX IF NOT EXISTS idx_demand_letters_user_id ON demand_letters(user_id)
 CREATE INDEX IF NOT EXISTS idx_demand_letters_status ON demand_letters(status);
 CREATE INDEX IF NOT EXISTS idx_demand_letters_case_reference ON demand_letters(case_reference);
 CREATE INDEX IF NOT EXISTS idx_demand_letter_versions_demand_letter_id ON demand_letter_versions(demand_letter_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_firm_id ON audit_logs(firm_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_event_type ON audit_logs(event_type);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_rate_limits_identifier ON rate_limits(identifier);
 `;
 
 // TypeScript interfaces matching the database schema
@@ -266,4 +298,26 @@ export interface SchemaMigration {
   version: number;
   applied_at: string;
   description?: string;
+}
+
+export interface AuditLog {
+  id: string;
+  event_type: string;
+  user_id?: string;
+  firm_id?: string;
+  resource_type?: string;
+  resource_id?: string;
+  details?: string; // JSON string
+  ip_address?: string;
+  user_agent?: string;
+  created_at: string;
+}
+
+export interface RateLimit {
+  id: string;
+  identifier: string;
+  endpoint: string;
+  request_count: number;
+  window_start: string;
+  created_at: string;
 }
