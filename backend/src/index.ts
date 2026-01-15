@@ -4,12 +4,16 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { initializeDatabase, getDatabase } from './db/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Load environment variables from root .env
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+
+// Initialize database
+initializeDatabase();
 
 const app = express();
 const PORT = process.env.BACKEND_PORT || 3001;
@@ -27,9 +31,18 @@ app.use(express.urlencoded({ extended: true }));
 
 // Health check endpoint
 app.get('/health', (req: Request, res: Response) => {
+  const db = getDatabase();
+  let dbStatus = 'connected';
+  try {
+    db.prepare('SELECT 1').get();
+  } catch {
+    dbStatus = 'error';
+  }
+
   res.json({
     status: 'healthy',
     service: 'backend-api',
+    database: dbStatus,
     timestamp: new Date().toISOString()
   });
 });

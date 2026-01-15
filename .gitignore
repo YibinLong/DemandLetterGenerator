@@ -39,7 +39,10 @@ yarn-error.log*
 # Database
 *.sqlite
 *.sqlite3
+*.sqlite-wal
+*.sqlite-shm
 data/*.sqlite
+!data/.gitkeep
 
 # Uploads
 uploads/*

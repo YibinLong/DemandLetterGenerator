@@ -7,9 +7,16 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "echo \"Tests not yet configured\" && exit 0"
+    "db:seed": "tsx src/db/seed.ts",
+    "db:reset": "rm -f data/database.sqlite data/database.sqlite-wal data/database.sqlite-shm && tsx src/db/seed.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
-  "keywords": ["demand-letter", "legal", "api"],
+  "keywords": [
+    "demand-letter",
+    "legal",
+    "api"
+  ],
   "author": "Steno",
   "license": "ISC",
   "description": "Backend API for Demand Letter Generator",
@@ -33,9 +40,11 @@
     "@types/multer": "^2.0.0",
     "@types/node": "^25.0.8",
     "@types/uuid": "^10.0.0",
+    "@vitest/coverage-v8": "^4.0.17",
     "nodemon": "^3.1.11",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.17"
   }
 }
