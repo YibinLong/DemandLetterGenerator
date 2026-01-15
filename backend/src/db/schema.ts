@@ -1,7 +1,7 @@
 // Database schema definitions for Demand Letter Generator
 // Using SQLite with better-sqlite3
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 // SQL statements for creating all tables
 export const CREATE_TABLES_SQL = `
@@ -225,6 +225,60 @@ CREATE INDEX IF NOT EXISTS idx_collaboration_sessions_is_active ON collaboration
 CREATE INDEX IF NOT EXISTS idx_collaboration_invites_token ON collaboration_invites(token);
 CREATE INDEX IF NOT EXISTS idx_collaboration_invites_session_id ON collaboration_invites(session_id);
 CREATE INDEX IF NOT EXISTS idx_collaboration_invites_invited_user_id ON collaboration_invites(invited_user_id);
+
+-- Document changes table - tracks individual changes for change tracking
+CREATE TABLE IF NOT EXISTS document_changes (
+  id TEXT PRIMARY KEY,
+  demand_letter_id TEXT NOT NULL,
+  version_id TEXT, -- Optional: links to specific version
+  user_id TEXT NOT NULL,
+  change_type TEXT NOT NULL CHECK (change_type IN ('insertion', 'deletion', 'modification', 'format')),
+  position_start INTEGER NOT NULL, -- Character position where change starts
+  position_end INTEGER NOT NULL, -- Character position where change ends
+  old_content TEXT, -- Original content (for deletions/modifications)
+  new_content TEXT, -- New content (for insertions/modifications)
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),
+  reviewed_by TEXT, -- User who accepted/rejected the change
+  reviewed_at TEXT,
+  metadata TEXT, -- JSON for additional change data (e.g., formatting details)
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (demand_letter_id) REFERENCES demand_letters(id) ON DELETE CASCADE,
+  FOREIGN KEY (version_id) REFERENCES demand_letter_versions(id) ON DELETE SET NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+-- Document comments table - stores comments and annotations
+CREATE TABLE IF NOT EXISTS document_comments (
+  id TEXT PRIMARY KEY,
+  demand_letter_id TEXT NOT NULL,
+  change_id TEXT, -- Optional: comment on a specific change
+  user_id TEXT NOT NULL,
+  parent_id TEXT, -- For threaded replies
+  content TEXT NOT NULL,
+  position_start INTEGER, -- Character position for inline comments
+  position_end INTEGER,
+  is_resolved INTEGER NOT NULL DEFAULT 0,
+  resolved_by TEXT,
+  resolved_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (demand_letter_id) REFERENCES demand_letters(id) ON DELETE CASCADE,
+  FOREIGN KEY (change_id) REFERENCES document_changes(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (parent_id) REFERENCES document_comments(id) ON DELETE CASCADE,
+  FOREIGN KEY (resolved_by) REFERENCES users(id) ON DELETE SET NULL
+);
+
+-- Create indexes for change tracking tables
+CREATE INDEX IF NOT EXISTS idx_document_changes_demand_letter_id ON document_changes(demand_letter_id);
+CREATE INDEX IF NOT EXISTS idx_document_changes_user_id ON document_changes(user_id);
+CREATE INDEX IF NOT EXISTS idx_document_changes_status ON document_changes(status);
+CREATE INDEX IF NOT EXISTS idx_document_changes_version_id ON document_changes(version_id);
+CREATE INDEX IF NOT EXISTS idx_document_comments_demand_letter_id ON document_comments(demand_letter_id);
+CREATE INDEX IF NOT EXISTS idx_document_comments_change_id ON document_comments(change_id);
+CREATE INDEX IF NOT EXISTS idx_document_comments_user_id ON document_comments(user_id);
+CREATE INDEX IF NOT EXISTS idx_document_comments_parent_id ON document_comments(parent_id);
 `;
 
 // TypeScript interfaces matching the database schema
@@ -383,4 +437,37 @@ export interface CollaborationInvite {
   accepted: number;
   created_at: string;
   expires_at: string;
+}
+
+export interface DocumentChange {
+  id: string;
+  demand_letter_id: string;
+  version_id?: string;
+  user_id: string;
+  change_type: 'insertion' | 'deletion' | 'modification' | 'format';
+  position_start: number;
+  position_end: number;
+  old_content?: string;
+  new_content?: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  reviewed_by?: string;
+  reviewed_at?: string;
+  metadata?: string; // JSON string
+  created_at: string;
+}
+
+export interface DocumentComment {
+  id: string;
+  demand_letter_id: string;
+  change_id?: string;
+  user_id: string;
+  parent_id?: string;
+  content: string;
+  position_start?: number;
+  position_end?: number;
+  is_resolved: number;
+  resolved_by?: string;
+  resolved_at?: string;
+  created_at: string;
+  updated_at: string;
 }

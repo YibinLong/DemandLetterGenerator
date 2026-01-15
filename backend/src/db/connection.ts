@@ -182,6 +182,64 @@ function runMigrations(database: Database.Database, fromVersion: number): void {
         CREATE INDEX IF NOT EXISTS idx_collaboration_invites_invited_user_id ON collaboration_invites(invited_user_id);
       `);
     },
+    // Migration to add change tracking and comments tables
+    5: () => {
+      database.exec(`
+        -- Document changes table - tracks individual changes for change tracking
+        CREATE TABLE IF NOT EXISTS document_changes (
+          id TEXT PRIMARY KEY,
+          demand_letter_id TEXT NOT NULL,
+          version_id TEXT,
+          user_id TEXT NOT NULL,
+          change_type TEXT NOT NULL CHECK (change_type IN ('insertion', 'deletion', 'modification', 'format')),
+          position_start INTEGER NOT NULL,
+          position_end INTEGER NOT NULL,
+          old_content TEXT,
+          new_content TEXT,
+          status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),
+          reviewed_by TEXT,
+          reviewed_at TEXT,
+          metadata TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          FOREIGN KEY (demand_letter_id) REFERENCES demand_letters(id) ON DELETE CASCADE,
+          FOREIGN KEY (version_id) REFERENCES demand_letter_versions(id) ON DELETE SET NULL,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL
+        );
+
+        -- Document comments table - stores comments and annotations
+        CREATE TABLE IF NOT EXISTS document_comments (
+          id TEXT PRIMARY KEY,
+          demand_letter_id TEXT NOT NULL,
+          change_id TEXT,
+          user_id TEXT NOT NULL,
+          parent_id TEXT,
+          content TEXT NOT NULL,
+          position_start INTEGER,
+          position_end INTEGER,
+          is_resolved INTEGER NOT NULL DEFAULT 0,
+          resolved_by TEXT,
+          resolved_at TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          FOREIGN KEY (demand_letter_id) REFERENCES demand_letters(id) ON DELETE CASCADE,
+          FOREIGN KEY (change_id) REFERENCES document_changes(id) ON DELETE CASCADE,
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          FOREIGN KEY (parent_id) REFERENCES document_comments(id) ON DELETE CASCADE,
+          FOREIGN KEY (resolved_by) REFERENCES users(id) ON DELETE SET NULL
+        );
+
+        -- Create indexes for change tracking tables
+        CREATE INDEX IF NOT EXISTS idx_document_changes_demand_letter_id ON document_changes(demand_letter_id);
+        CREATE INDEX IF NOT EXISTS idx_document_changes_user_id ON document_changes(user_id);
+        CREATE INDEX IF NOT EXISTS idx_document_changes_status ON document_changes(status);
+        CREATE INDEX IF NOT EXISTS idx_document_changes_version_id ON document_changes(version_id);
+        CREATE INDEX IF NOT EXISTS idx_document_comments_demand_letter_id ON document_comments(demand_letter_id);
+        CREATE INDEX IF NOT EXISTS idx_document_comments_change_id ON document_comments(change_id);
+        CREATE INDEX IF NOT EXISTS idx_document_comments_user_id ON document_comments(user_id);
+        CREATE INDEX IF NOT EXISTS idx_document_comments_parent_id ON document_comments(parent_id);
+      `);
+    },
   };
 
   for (let version = fromVersion + 1; version <= SCHEMA_VERSION; version++) {
