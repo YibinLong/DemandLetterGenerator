@@ -17,6 +17,7 @@ import type {
   RefineResponse,
 } from '../types/demand-letter';
 import { RefinementPanel } from './RefinementPanel';
+import { ExportDialog } from './ExportDialog';
 
 interface DemandLetterViewProps {
   letterId: string;
@@ -35,6 +36,7 @@ export function DemandLetterView({ letterId, onBack }: DemandLetterViewProps) {
   const [editedContent, setEditedContent] = useState('');
   const [showRefinementPanel, setShowRefinementPanel] = useState(false);
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
+  const [showExportDialog, setShowExportDialog] = useState(false);
 
   // Fetch demand letter
   const { data: letter, isLoading, error } = useQuery<DemandLetter>({
@@ -191,6 +193,14 @@ export function DemandLetterView({ letterId, onBack }: DemandLetterViewProps) {
             className={`refine-button ${showRefinementPanel ? 'active' : ''}`}
           >
             {showRefinementPanel ? '✕ Close Panel' : '✨ Refine with AI'}
+          </button>
+
+          <button
+            onClick={() => setShowExportDialog(true)}
+            className="export-button"
+            title="Export to Word"
+          >
+            Export
           </button>
 
           <button onClick={copyToClipboard} className="copy-button" title="Copy to clipboard">
@@ -383,6 +393,14 @@ export function DemandLetterView({ letterId, onBack }: DemandLetterViewProps) {
         </div>
       )}
 
+      {/* Export Dialog */}
+      <ExportDialog
+        letterId={letterId}
+        letterTitle={letter.title}
+        isOpen={showExportDialog}
+        onClose={() => setShowExportDialog(false)}
+      />
+
       <style>{`
         .letter-view {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -517,6 +535,20 @@ export function DemandLetterView({ letterId, onBack }: DemandLetterViewProps) {
 
         .refine-button.active {
           background: #6d28d9;
+        }
+
+        .export-button {
+          padding: 8px 16px;
+          background: #10b981;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          font-size: 14px;
+          cursor: pointer;
+        }
+
+        .export-button:hover {
+          background: #059669;
         }
 
         .copy-button {

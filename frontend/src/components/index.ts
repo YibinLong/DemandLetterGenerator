@@ -8,6 +8,7 @@ export { DemandLetterGenerator } from './DemandLetterGenerator';
 export { DemandLetterList } from './DemandLetterList';
 export { DemandLetterView } from './DemandLetterView';
 export { RefinementPanel } from './RefinementPanel';
+export { ExportDialog } from './ExportDialog';
 
 // Template components
 export { TemplateList } from './TemplateList';

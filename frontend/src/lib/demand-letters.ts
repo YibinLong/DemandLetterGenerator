@@ -11,6 +11,8 @@ import type {
   VersionListResponse,
   DemandLetterVersion,
   AIHistoryResponse,
+  ExportOptions,
+  ExportOptionsResponse,
 } from '../types/demand-letter';
 
 // Create new demand letter with AI generation
@@ -291,4 +293,64 @@ export function formatRelativeTime(dateString: string): string {
   if (diffHours < 24) return `${diffHours}h ago`;
   if (diffDays < 7) return `${diffDays}d ago`;
   return formatDate(dateString);
+}
+
+// Export demand letter to Word document
+export async function exportDemandLetterToWord(
+  id: string,
+  options?: ExportOptions
+): Promise<Blob> {
+  const response = await apiClient.post(
+    `/api/demand-letters/${id}/export`,
+    { options },
+    {
+      responseType: 'blob',
+      timeout: 30000,
+    }
+  );
+  return response.data;
+}
+
+// Batch export demand letters to Word documents (returns ZIP)
+export async function batchExportDemandLetters(
+  demandLetterIds: string[],
+  options?: ExportOptions
+): Promise<Blob> {
+  const response = await apiClient.post(
+    '/api/demand-letters/export/batch',
+    {
+      demand_letter_ids: demandLetterIds,
+      options,
+    },
+    {
+      responseType: 'blob',
+      timeout: 120000,
+    }
+  );
+  return response.data;
+}
+
+// Get export options and defaults
+export async function getExportOptions(): Promise<ExportOptionsResponse> {
+  const response = await apiClient.get<ExportOptionsResponse>(
+    '/api/demand-letters/export/options'
+  );
+  return response.data;
+}
+
+// Helper to download a blob as a file
+export function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+// Helper to sanitize filename
+export function sanitizeFilename(title: string): string {
+  return title.replace(/[<>:"/\\|?*]/g, '').replace(/\s+/g, '_').substring(0, 100) || 'demand_letter';
 }

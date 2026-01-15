@@ -179,3 +179,44 @@ export interface GenerationState {
   content: string;
   error?: string;
 }
+
+// Export options
+export interface ExportOptions {
+  font_name?: string;
+  font_size?: number;
+  margin_top?: number;
+  margin_bottom?: number;
+  margin_left?: number;
+  margin_right?: number;
+  line_spacing?: number;
+  include_letterhead?: boolean;
+  letterhead_firm_name?: string;
+  letterhead_address?: string;
+  letterhead_phone?: string;
+  letterhead_email?: string;
+  include_page_numbers?: boolean;
+  include_date?: boolean;
+}
+
+export interface ExportRequest {
+  options?: ExportOptions;
+}
+
+export interface BatchExportRequest {
+  demand_letter_ids: string[];
+  options?: ExportOptions;
+}
+
+export interface ExportOptionsResponse {
+  fonts: string[];
+  defaults: ExportOptions;
+  font_sizes: number[];
+  line_spacing_options: number[];
+  margin_range: { min: number; max: number };
+  firm_letterhead: {
+    firm_name: string;
+    address?: string;
+    phone?: string;
+    email?: string;
+  } | null;
+}
