@@ -1,7 +1,7 @@
 // Database schema definitions for Demand Letter Generator
 // Using SQLite with better-sqlite3
 
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 // SQL statements for creating all tables
 export const CREATE_TABLES_SQL = `
@@ -279,6 +279,52 @@ CREATE INDEX IF NOT EXISTS idx_document_comments_demand_letter_id ON document_co
 CREATE INDEX IF NOT EXISTS idx_document_comments_change_id ON document_comments(change_id);
 CREATE INDEX IF NOT EXISTS idx_document_comments_user_id ON document_comments(user_id);
 CREATE INDEX IF NOT EXISTS idx_document_comments_parent_id ON document_comments(parent_id);
+
+-- AI Prompt Templates table - custom prompts for refining letter content
+CREATE TABLE IF NOT EXISTS ai_prompt_templates (
+  id TEXT PRIMARY KEY,
+  firm_id TEXT NOT NULL,
+  created_by TEXT NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT,
+  prompt_type TEXT NOT NULL CHECK (prompt_type IN ('refinement', 'generation', 'analysis')),
+  system_prompt TEXT NOT NULL,
+  user_prompt_template TEXT NOT NULL,
+  variables TEXT, -- JSON array of variable definitions
+  category TEXT,
+  is_shared INTEGER NOT NULL DEFAULT 0,
+  is_approved INTEGER NOT NULL DEFAULT 0,
+  is_default INTEGER NOT NULL DEFAULT 0, -- Built-in system prompts
+  usage_count INTEGER NOT NULL DEFAULT 0,
+  current_version INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (firm_id) REFERENCES firms(id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- AI Prompt Template Versions table - version history for prompt templates
+CREATE TABLE IF NOT EXISTS ai_prompt_template_versions (
+  id TEXT PRIMARY KEY,
+  prompt_template_id TEXT NOT NULL,
+  version_number INTEGER NOT NULL,
+  system_prompt TEXT NOT NULL,
+  user_prompt_template TEXT NOT NULL,
+  variables TEXT,
+  changed_by TEXT NOT NULL,
+  change_summary TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (prompt_template_id) REFERENCES ai_prompt_templates(id) ON DELETE CASCADE,
+  FOREIGN KEY (changed_by) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Create indexes for AI prompt templates
+CREATE INDEX IF NOT EXISTS idx_ai_prompt_templates_firm_id ON ai_prompt_templates(firm_id);
+CREATE INDEX IF NOT EXISTS idx_ai_prompt_templates_created_by ON ai_prompt_templates(created_by);
+CREATE INDEX IF NOT EXISTS idx_ai_prompt_templates_prompt_type ON ai_prompt_templates(prompt_type);
+CREATE INDEX IF NOT EXISTS idx_ai_prompt_templates_category ON ai_prompt_templates(category);
+CREATE INDEX IF NOT EXISTS idx_ai_prompt_templates_is_shared ON ai_prompt_templates(is_shared);
+CREATE INDEX IF NOT EXISTS idx_ai_prompt_template_versions_prompt_template_id ON ai_prompt_template_versions(prompt_template_id);
 `;
 
 // TypeScript interfaces matching the database schema
@@ -470,4 +516,36 @@ export interface DocumentComment {
   resolved_at?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface AIPromptTemplate {
+  id: string;
+  firm_id: string;
+  created_by: string;
+  name: string;
+  description?: string;
+  prompt_type: 'refinement' | 'generation' | 'analysis';
+  system_prompt: string;
+  user_prompt_template: string;
+  variables?: string; // JSON string of variable definitions
+  category?: string;
+  is_shared: number;
+  is_approved: number;
+  is_default: number;
+  usage_count: number;
+  current_version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AIPromptTemplateVersion {
+  id: string;
+  prompt_template_id: string;
+  version_number: number;
+  system_prompt: string;
+  user_prompt_template: string;
+  variables?: string;
+  changed_by: string;
+  change_summary?: string;
+  created_at: string;
 }
