@@ -13,6 +13,7 @@ import documentRoutes from './routes/documents.js';
 import demandLetterRoutes from './routes/demand-letters.js';
 import templateRoutes from './routes/templates.js';
 import collaborationRoutes from './routes/collaboration.js';
+import changeTrackingRoutes from './routes/change-tracking.js';
 import { generalRateLimit, startRateLimitCleanup } from './middleware/rateLimit.js';
 import { initializeCollaboration } from './services/collaboration.js';
 
@@ -114,6 +115,7 @@ app.get('/api', (req: Request, res: Response) => {
       templates: '/api/templates',
       demandLetters: '/api/demand-letters',
       collaboration: '/api/collaboration',
+      changeTracking: '/api/change-tracking',
     },
     websocket: {
       collaboration: '/collaboration',
@@ -135,6 +137,9 @@ app.use('/api/templates', templateRoutes);
 
 // Mount collaboration routes
 app.use('/api/collaboration', collaborationRoutes);
+
+// Mount change tracking routes
+app.use('/api/change-tracking', changeTrackingRoutes);
 
 // Error handling middleware
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
