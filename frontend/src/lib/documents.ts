@@ -127,6 +127,22 @@ export async function deleteDocument(id: string): Promise<void> {
   await apiClient.delete(`/api/documents/${id}`);
 }
 
+// Get document preview URL (for iframe embedding)
+export function getDocumentPreviewUrl(id: string): string {
+  const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+  return `${baseUrl}/api/documents/${id}/preview`;
+}
+
+// Fetch document content for preview
+export async function fetchDocumentPreview(id: string): Promise<{ content: string; blob: Blob }> {
+  const response = await apiClient.get(`/api/documents/${id}/preview`, {
+    responseType: 'blob',
+  });
+  const blob = response.data as Blob;
+  const content = await blob.text();
+  return { content, blob };
+}
+
 // Validate file before upload
 export function validateFile(file: File): { valid: boolean; error?: string } {
   const ALLOWED_EXTENSIONS = ['pdf', 'docx', 'txt'];
