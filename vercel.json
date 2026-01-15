@@ -10,21 +10,51 @@
     },
     {
       "src": "backend/package.json",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "maxLambdaSize": "50mb",
+        "memory": 1024,
+        "maxDuration": 60
+      }
     },
     {
       "src": "ai-service/app/main.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "50mb",
+        "memory": 1024,
+        "maxDuration": 120
+      }
     }
   ],
   "routes": [
     {
+      "src": "/health",
+      "dest": "backend/dist/index.js",
+      "headers": {
+        "Cache-Control": "no-cache, no-store, must-revalidate"
+      }
+    },
+    {
+      "src": "/metrics",
+      "dest": "backend/dist/index.js",
+      "headers": {
+        "Cache-Control": "no-cache, no-store, must-revalidate"
+      }
+    },
+    {
       "src": "/api/(.*)",
-      "dest": "backend/dist/index.js"
+      "dest": "backend/dist/index.js",
+      "headers": {
+        "X-Robots-Tag": "noindex"
+      }
     },
     {
       "src": "/ai/(.*)",
-      "dest": "ai-service/app/main.py"
+      "dest": "ai-service/app/main.py",
+      "headers": {
+        "X-Robots-Tag": "noindex"
+      }
     },
     {
       "src": "/(.*)",
@@ -33,6 +63,49 @@
   ],
   "env": {
     "OPENAI_API_KEY": "@openai_api_key",
-    "JWT_SECRET": "@jwt_secret"
-  }
+    "JWT_SECRET": "@jwt_secret",
+    "ENCRYPTION_SECRET": "@encryption_secret",
+    "NODE_ENV": "production",
+    "STATELESS_MODE": "true"
+  },
+  "regions": ["iad1"],
+  "functions": {
+    "backend/dist/index.js": {
+      "memory": 1024,
+      "maxDuration": 60
+    },
+    "ai-service/app/main.py": {
+      "memory": 1024,
+      "maxDuration": 120
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        }
+      ]
+    }
+  ],
+  "crons": []
 }
