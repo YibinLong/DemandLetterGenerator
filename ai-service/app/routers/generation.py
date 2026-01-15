@@ -30,6 +30,8 @@ from ..models.generation import (
     ExportOptionsModel,
     BatchExportRequest,
     BatchExportResponse,
+    TestPromptRequest,
+    TestPromptResponse,
 )
 from ..services.openai_client import get_openai_client, OpenAIClient
 from ..services.document_parser import get_document_parser, DocumentParser
@@ -659,3 +661,66 @@ async def get_export_options():
         "line_spacing_options": [1.0, 1.15, 1.5, 2.0],
         "margin_range": {"min": 0.5, "max": 2.0},
     }
+
+
+@router.post(
+    "/test-prompt",
+    response_model=TestPromptResponse,
+    responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
+)
+async def test_custom_prompt(request: TestPromptRequest) -> TestPromptResponse:
+    """
+    Test a custom prompt template with sample content.
+
+    This endpoint allows testing custom system and user prompts
+    before saving them as templates. Useful for validating
+    prompt behavior and output quality.
+
+    **Parameters:**
+    - system_prompt: The system prompt to test
+    - user_prompt: The user prompt to test (already variable-substituted)
+    - sample_content: Sample content to include in testing
+    - model: Optional AI model to use
+    - max_tokens: Maximum tokens for test response (default 1000)
+    - temperature: Sampling temperature
+    """
+    openai_client = get_openai_client()
+
+    if not request.system_prompt.strip():
+        raise HTTPException(status_code=400, detail="System prompt cannot be empty")
+
+    if not request.user_prompt.strip():
+        raise HTTPException(status_code=400, detail="User prompt cannot be empty")
+
+    # Combine user prompt with sample content if not already included
+    full_user_prompt = request.user_prompt
+    if request.sample_content and request.sample_content not in request.user_prompt:
+        full_user_prompt = f"{request.user_prompt}\n\nSample Content:\n{request.sample_content}"
+
+    try:
+        response = await openai_client.generate(
+            messages=[{"role": "user", "content": full_user_prompt}],
+            model=request.model,
+            max_tokens=request.max_tokens or 1000,
+            temperature=request.temperature or 0.7,
+            system_prompt=request.system_prompt,
+        )
+
+        return TestPromptResponse(
+            content=response.content,
+            model=response.model,
+            usage=TokenUsageResponse(
+                prompt_tokens=response.usage.prompt_tokens,
+                completion_tokens=response.usage.completion_tokens,
+                total_tokens=response.usage.total_tokens,
+                estimated_cost=response.usage.estimated_cost,
+            ),
+            finish_reason=response.finish_reason,
+        )
+
+    except Exception as e:
+        logger.error(f"Prompt test failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to test prompt: {str(e)}",
+        )

@@ -192,3 +192,22 @@ class BatchExportResponse(BaseModel):
     file_count: int
     total_size: int
     errors: list[str] = Field(default_factory=list)
+
+
+class TestPromptRequest(BaseModel):
+    """Request to test a custom prompt template."""
+    system_prompt: str = Field(..., description="System prompt to test")
+    user_prompt: str = Field(..., description="User prompt to test")
+    sample_content: str = Field(..., description="Sample content to use in testing")
+    model: Optional[str] = Field(None, description="AI model to use")
+    max_tokens: Optional[int] = Field(1000, description="Maximum tokens for test response")
+    temperature: Optional[float] = Field(0.7, ge=0, le=2)
+
+
+class TestPromptResponse(BaseModel):
+    """Response from prompt testing."""
+    content: str = Field(..., description="Generated content from the test")
+    model: str = Field(..., description="Model used")
+    usage: TokenUsageResponse = Field(..., description="Token usage")
+    finish_reason: Optional[str] = None
+    tested_at: datetime = Field(default_factory=datetime.utcnow)
