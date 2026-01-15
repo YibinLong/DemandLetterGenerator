@@ -7,3 +7,4 @@ export { DocumentPreview } from './DocumentPreview';
 export { DemandLetterGenerator } from './DemandLetterGenerator';
 export { DemandLetterList } from './DemandLetterList';
 export { DemandLetterView } from './DemandLetterView';
+export { RefinementPanel } from './RefinementPanel';

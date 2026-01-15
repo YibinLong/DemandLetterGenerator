@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getDemandLetter,
   updateDemandLetter,
-  refineDemandLetter,
   getDemandLetterVersions,
   getDemandLetterVersion,
   restoreDemandLetterVersion,
@@ -15,7 +14,9 @@ import type {
   DemandLetter,
   DemandLetterStatus,
   DemandLetterVersion,
+  RefineResponse,
 } from '../types/demand-letter';
+import { RefinementPanel } from './RefinementPanel';
 
 interface DemandLetterViewProps {
   letterId: string;
@@ -32,8 +33,7 @@ export function DemandLetterView({ letterId, onBack }: DemandLetterViewProps) {
   const [activeTab, setActiveTab] = useState<ViewTab>('content');
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState('');
-  const [showRefineModal, setShowRefineModal] = useState(false);
-  const [refineInstructions, setRefineInstructions] = useState('');
+  const [showRefinementPanel, setShowRefinementPanel] = useState(false);
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
 
   // Fetch demand letter
@@ -67,17 +67,11 @@ export function DemandLetterView({ letterId, onBack }: DemandLetterViewProps) {
     },
   });
 
-  // Refine mutation
-  const refineMutation = useMutation({
-    mutationFn: (instructions: string) =>
-      refineDemandLetter(letterId, { instructions }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['demandLetter', letterId] });
-      queryClient.invalidateQueries({ queryKey: ['demandLetterVersions', letterId] });
-      setShowRefineModal(false);
-      setRefineInstructions('');
-    },
-  });
+  // Handle refinement completion
+  const handleRefined = useCallback((_response: RefineResponse) => {
+    queryClient.invalidateQueries({ queryKey: ['demandLetter', letterId] });
+    queryClient.invalidateQueries({ queryKey: ['demandLetterVersions', letterId] });
+  }, [queryClient, letterId]);
 
   // Restore version mutation
   const restoreMutation = useMutation({
@@ -111,11 +105,9 @@ export function DemandLetterView({ letterId, onBack }: DemandLetterViewProps) {
     updateMutation.mutate({ status });
   }, [updateMutation]);
 
-  const handleRefine = useCallback(() => {
-    if (refineInstructions.trim()) {
-      refineMutation.mutate(refineInstructions.trim());
-    }
-  }, [refineInstructions, refineMutation]);
+  const toggleRefinementPanel = useCallback(() => {
+    setShowRefinementPanel(prev => !prev);
+  }, []);
 
   const handleRestoreVersion = useCallback((versionId: string) => {
     if (window.confirm('Are you sure you want to restore this version? This will create a new version with the restored content.')) {
@@ -153,7 +145,8 @@ export function DemandLetterView({ letterId, onBack }: DemandLetterViewProps) {
   }
 
   return (
-    <div className="letter-view">
+    <div className={`letter-view ${showRefinementPanel ? 'with-panel' : ''}`}>
+      <div className="letter-view-main">
       {/* Header */}
       <div className="view-header">
         <div className="header-left">
@@ -193,8 +186,11 @@ export function DemandLetterView({ letterId, onBack }: DemandLetterViewProps) {
             <option value="archived">Archived</option>
           </select>
 
-          <button onClick={() => setShowRefineModal(true)} className="refine-button">
-            ✨ Refine with AI
+          <button
+            onClick={toggleRefinementPanel}
+            className={`refine-button ${showRefinementPanel ? 'active' : ''}`}
+          >
+            {showRefinementPanel ? '✕ Close Panel' : '✨ Refine with AI'}
           </button>
 
           <button onClick={copyToClipboard} className="copy-button" title="Copy to clipboard">
@@ -373,52 +369,47 @@ export function DemandLetterView({ letterId, onBack }: DemandLetterViewProps) {
         </div>
       )}
 
-      {/* Refine Modal */}
-      {showRefineModal && (
-        <div className="modal-overlay" onClick={() => setShowRefineModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <h2>Refine with AI</h2>
-            <p className="modal-description">
-              Provide instructions to refine this demand letter. The AI will update the content based on your instructions.
-            </p>
+      </div>
 
-            <textarea
-              value={refineInstructions}
-              onChange={(e) => setRefineInstructions(e.target.value)}
-              placeholder="e.g., 'Make the tone more assertive', 'Add more detail about the medical expenses', 'Shorten the opening paragraph'..."
-              rows={4}
-              className="refine-input"
-            />
-
-            <div className="modal-actions">
-              <button
-                onClick={() => setShowRefineModal(false)}
-                className="modal-cancel"
-                disabled={refineMutation.isPending}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleRefine}
-                className="modal-submit"
-                disabled={!refineInstructions.trim() || refineMutation.isPending}
-              >
-                {refineMutation.isPending ? 'Refining...' : 'Refine Letter'}
-              </button>
-            </div>
-
-            {refineMutation.isError && (
-              <div className="modal-error">
-                Failed to refine letter. Please try again.
-              </div>
-            )}
-          </div>
+      {/* Refinement Panel (Side Panel) */}
+      {showRefinementPanel && (
+        <div className="refinement-panel-container">
+          <RefinementPanel
+            letterId={letterId}
+            currentContent={letter.content}
+            currentVersion={letter.version || 1}
+            onRefined={handleRefined}
+          />
         </div>
       )}
 
       <style>{`
         .letter-view {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .letter-view.with-panel {
+          display: flex;
+          height: calc(100vh - 100px);
+          overflow: hidden;
+        }
+
+        .letter-view-main {
+          flex: 1;
+          overflow-y: auto;
+          padding-right: 20px;
+        }
+
+        .letter-view.with-panel .letter-view-main {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .refinement-panel-container {
+          width: 380px;
+          flex-shrink: 0;
+          height: 100%;
+          overflow: hidden;
         }
 
         .letter-view.loading,
@@ -522,6 +513,10 @@ export function DemandLetterView({ letterId, onBack }: DemandLetterViewProps) {
 
         .refine-button:hover {
           background: #7c3aed;
+        }
+
+        .refine-button.active {
+          background: #6d28d9;
         }
 
         .copy-button {
@@ -927,7 +922,23 @@ export function DemandLetterView({ letterId, onBack }: DemandLetterViewProps) {
           font-size: 14px;
         }
 
+        @media (max-width: 1200px) {
+          .refinement-panel-container {
+            width: 320px;
+          }
+        }
+
         @media (max-width: 768px) {
+          .letter-view.with-panel {
+            flex-direction: column;
+          }
+
+          .refinement-panel-container {
+            width: 100%;
+            height: 400px;
+            order: -1;
+          }
+
           .view-header {
             flex-direction: column;
             gap: 16px;
