@@ -139,19 +139,19 @@
 
 ---
 
-## **EPIC 4: TEMPLATE MANAGEMENT (P0)** ⬜
+## **EPIC 4: TEMPLATE MANAGEMENT (P0)** 🟦
 
-### **Story 4.1: Template CRUD Operations** ⬜
+### **Story 4.1: Template CRUD Operations** ✅
 
 **Story:** As an attorney, I want to create and manage demand letter templates
 
-- ⬜ **Task 4.1.1:** Design template data model (name, content, placeholders, firm_id)
-- ⬜ **Task 4.1.2:** Create template CRUD API endpoints
-- ⬜ **Task 4.1.3:** Build template creation UI with rich text editor
-- ⬜ **Task 4.1.4:** Implement template placeholder system (e.g., {{client_name}}, {{incident_date}})
-- ⬜ **Task 4.1.5:** Create template listing and management UI
-- ⬜ **Task 4.1.6:** Add template preview functionality
-- ⬜ **Task 4.1.7:** Implement template duplication feature
+- ✅ **Task 4.1.1:** Design template data model (name, content, placeholders, firm_id)
+- ✅ **Task 4.1.2:** Create template CRUD API endpoints
+- ✅ **Task 4.1.3:** Build template creation UI with rich text editor
+- ✅ **Task 4.1.4:** Implement template placeholder system (e.g., {{client_name}}, {{incident_date}})
+- ✅ **Task 4.1.5:** Create template listing and management UI
+- ✅ **Task 4.1.6:** Add template preview functionality
+- ✅ **Task 4.1.7:** Implement template duplication feature
 
 **Acceptance:** Users can create, edit, view, and delete demand letter templates.
 
@@ -391,7 +391,7 @@
 | Epic 1: Project Setup | P0 | 3 | 22 | ✅ (3/3 Stories) |
 | Epic 2: Document Management | P0 | 2 | 15 | ✅ (2/2 Stories) |
 | Epic 3: AI Demand Letter Generation | P0 | 3 | 20 | ✅ (3/3 Stories) |
-| Epic 4: Template Management | P0 | 2 | 13 | ⬜ |
+| Epic 4: Template Management | P0 | 2 | 13 | 🟦 (1/2 Stories) |
 | Epic 5: Document Export | P0 | 1 | 7 | ⬜ |
 | Epic 6: Document Editing & Collaboration | P1 | 3 | 18 | ⬜ |
 | Epic 7: Customizable AI Prompts | P1 | 1 | 7 | ⬜ |
