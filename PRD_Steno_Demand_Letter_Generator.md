@@ -75,7 +75,7 @@ Lawyers spend considerable time reviewing source documents to draft demand lette
 ## 9. Technical Requirements
 
 - **System Architecture:** Microservices architecture using React, NodeJS, Python
-- **Integrations:** Utilize OpenAI API Key for AI operations.
+- **Integrations:** Utilize OpenAI API Key for AI operations. NOTE: A valid OPENAI_API_KEY is in .env
 - **APIs:** Public APIs for document upload and download.
 - **Data Requirements:** SQLite for data persistence, ensuring secure and efficient data handling.
 
