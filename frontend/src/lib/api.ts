@@ -61,14 +61,13 @@ apiClient.interceptors.response.use(
       if (refreshToken) {
         try {
           const response = await axios.post(`${API_URL}/api/auth/refresh`, {
-            refresh_token: refreshToken,
+            refreshToken,
           });
 
-          const { access_token, refresh_token: newRefreshToken } = response.data;
-          setAccessToken(access_token);
-          localStorage.setItem('refreshToken', newRefreshToken);
+          const { accessToken: newAccessToken } = response.data;
+          setAccessToken(newAccessToken);
 
-          originalRequest.headers.Authorization = `Bearer ${access_token}`;
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
           return apiClient(originalRequest);
         } catch {
           clearTokens();
@@ -100,15 +99,15 @@ export async function checkAIServiceHealth() {
 
 // Auth API functions
 export interface LoginResponse {
-  access_token: string;
-  refresh_token: string;
+  accessToken: string;
+  refreshToken: string;
   user: {
     id: string;
     email: string;
-    first_name: string;
-    last_name: string;
+    firstName: string;
+    lastName: string;
     role: string;
-    firm_id: string;
+    firmId: string;
   };
 }
 
@@ -118,8 +117,8 @@ export async function login(email: string, password: string): Promise<LoginRespo
     password,
   });
 
-  setAccessToken(response.data.access_token);
-  localStorage.setItem('refreshToken', response.data.refresh_token);
+  setAccessToken(response.data.accessToken);
+  localStorage.setItem('refreshToken', response.data.refreshToken);
 
   return response.data;
 }
@@ -135,15 +134,16 @@ export async function logout(): Promise<void> {
 export async function register(data: {
   email: string;
   password: string;
-  first_name: string;
-  last_name: string;
-  firm_id: string;
+  firstName: string;
+  lastName: string;
+  firmId?: string;
+  firmName?: string;
   role?: string;
 }): Promise<LoginResponse> {
   const response = await apiClient.post<LoginResponse>('/api/auth/register', data);
 
-  setAccessToken(response.data.access_token);
-  localStorage.setItem('refreshToken', response.data.refresh_token);
+  setAccessToken(response.data.accessToken);
+  localStorage.setItem('refreshToken', response.data.refreshToken);
 
   return response.data;
 }

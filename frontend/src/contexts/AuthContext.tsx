@@ -1,14 +1,14 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import { getCurrentUser, login as apiLogin, logout as apiLogout, clearTokens, getAccessToken, setAccessToken } from '../lib/api';
+import { getCurrentUser, login as apiLogin, logout as apiLogout, clearTokens, getAccessToken } from '../lib/api';
 
 interface User {
   id: string;
   email: string;
-  first_name: string;
-  last_name: string;
+  firstName: string;
+  lastName: string;
   role: string;
-  firm_id: string;
+  firmId: string;
 }
 
 interface AuthContextType {
@@ -60,8 +60,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = useCallback(async (email: string, password: string) => {
     const response = await apiLogin(email, password);
-    setAccessToken(response.access_token);
-    localStorage.setItem('refreshToken', response.refresh_token);
+    // apiLogin already sets tokens in localStorage
     setUser(response.user);
   }, []);
 

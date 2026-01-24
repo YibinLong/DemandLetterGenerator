@@ -333,7 +333,7 @@ export function Dashboard() {
     <div className="dashboard">
       {/* Welcome section */}
       <div className="welcome-section">
-        <h1>Welcome back, {user?.first_name || 'User'}</h1>
+        <h1>Welcome back, {user?.firstName || 'User'}</h1>
         <p>Here's what's happening with your demand letters today.</p>
       </div>
 

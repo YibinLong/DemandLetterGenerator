@@ -51,10 +51,10 @@ export function Header({ onMenuClick }: HeaderProps) {
   };
 
   const userInitials = user
-    ? `${user.first_name?.[0] || ''}${user.last_name?.[0] || ''}`.toUpperCase() || user.email[0].toUpperCase()
+    ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() || user.email[0].toUpperCase()
     : '';
 
-  const userName = user ? `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email : '';
+  const userName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email : '';
 
   return (
     <header className="app-header" role="banner">
@@ -92,7 +92,7 @@ export function Header({ onMenuClick }: HeaderProps) {
             >
               <div className="user-avatar" aria-hidden="true">{userInitials}</div>
               <div className="user-info">
-                <span className="user-name">{user.first_name} {user.last_name}</span>
+                <span className="user-name">{user.firstName} {user.lastName}</span>
                 <span className="user-role">{user.role}</span>
               </div>
               <svg

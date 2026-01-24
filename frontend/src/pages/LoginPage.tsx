@@ -96,7 +96,7 @@ export function LoginPage() {
 
         <div className="login-footer">
           <p>
-            Demo credentials: <code>admin@lawfirm.com</code> / <code>password123</code>
+            Demo credentials: <code>admin@andersonlaw.com</code> / <code>password123</code>
           </p>
         </div>
       </div>
